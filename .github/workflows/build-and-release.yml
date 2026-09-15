@@ -2,14 +2,30 @@ name: Build and Release Shittim Server
 
 # The release number comes from Directory.Build.props, which is also what the server
 # assemblies and ShittimControlCenter/package.json carry. Bump it there (and in
-# package.json) before running this - the tag guard below refuses to release a version
-# that has already been tagged rather than quietly shipping a second build under it.
+# package.json) before releasing - the guard below refuses to ship a version whose tag
+# already exists rather than quietly producing a second build under it.
+#
+# Triggered by pushing a v<version> tag, which is the normal path:
+#   bump Directory.Build.props + package.json -> commit -> git tag v<version> -> git push --follow-tags
+# The tag has to name the version the tagged commit declares, so the two cannot drift.
+# workflow_dispatch does the same build and creates the tag itself, for re-releasing a
+# version whose tag never made it to the remote.
+#
+# The Control Center's own workflow listens on the same tag, so both carry the same
+# concurrency group and run one after the other instead of racing to create the release.
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   build-and-release:
@@ -47,7 +63,14 @@ jobs:
           }
 
           $tag = "v$version"
-          if (git tag --list $tag) {
+
+          if ($env:GITHUB_REF_TYPE -eq 'tag') {
+            # A tag push IS the release trigger, so the tag is already there; what has to hold is that it names the version this commit declares. Tagging a commit that still carries the previous number is the mistake this catches.
+            if ($env:GITHUB_REF_NAME -ne $tag) {
+              throw "pushed $env:GITHUB_REF_NAME but this tree declares $tag - tag the commit that carries the version, or bump the version to match the tag"
+            }
+          }
+          elseif (git tag --list $tag) {
             throw "$tag already exists - bump Directory.Build.props and package.json before releasing"
           }
 
@@ -87,6 +110,7 @@ jobs:
           Compress-Archive -Path "$packageDir\*" -DestinationPath ".\$assetName" -Force
 
       - name: Create Git tag
+        if: github.ref_type != 'tag'
         shell: pwsh
         run: |
           git config user.name "github-actions[bot]"

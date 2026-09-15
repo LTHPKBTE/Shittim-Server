@@ -8,9 +8,10 @@ name: Release Control Center
 #
 # Usage:
 #   1. Bump "version" in ShittimControlCenter/package.json and commit/push it
-#      (electron-updater compares this semver to decide an update is available;
-#      use valid semver - no leading zeros, e.g. 2026.7.28 not 2026.07.28).
-#   2. Actions tab -> "Release Control Center" -> Run workflow.
+#      (electron-updater compares this semver to decide an update is available; it has
+#      to be valid semver - no leading zeros and no extra dotted suffix, so 2026.9.15
+#      rather than 2026.9.13.d2).
+#   2. Push a v<that version> tag, or run this from the Actions tab.
 #   3. The release goes LIVE immediately when the workflow finishes
 #      (publish.releaseType is "release", not electron-builder's draft default) -
 #      installed apps will start picking it up on their next launch, so only run
@@ -18,12 +19,24 @@ name: Release Control Center
 #
 # Note: the NSIS "Setup" (installed) build self-updates in place; portable users
 # get an update notice with a link to the download page.
+#
+# Both this and "Build and Release Shittim Server" listen on the same tag, so they share
+# a concurrency group and run one after the other rather than racing to create the same
+# release. electron-builder uploads to tag v<package.json version>; the server workflow
+# separately checks that against Directory.Build.props.
 
 on:
   workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
 
 jobs:
   release:
