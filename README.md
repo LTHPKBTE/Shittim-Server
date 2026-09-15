@@ -4,8 +4,6 @@ A private server for Blue Archive's Steam release, written in C# on ASP.NET Core
 
 This is a fork of [Neoexm/Shittim-Server](https://github.com/Neoexm/Shittim-Server), with the Chinese localisation and bulk "max character" fixes from [HollisMeynell/Shittim-Server](https://github.com/HollisMeynell/Shittim-Server) merged in. Updates and server source are pulled from this fork (`LTHPKBTE/Shittim-Server`).
 
-Questions, bugs, support, or anything else: https://discord.gg/GANwPn9xX6 (the upstream project's Discord)
-
 ## Features
 
 - Play without touching the official servers
