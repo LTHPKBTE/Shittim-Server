@@ -1,4 +1,5 @@
 import { icon } from './icons.js';
+import { getLanguage, t } from './i18n.js';
 
 // Hyperscript: el('div.card', { onclick }, child, child...)
 export function el(spec, props = {}, ...children) {
@@ -113,9 +114,9 @@ export function notifyRestart() {
     return;
   }
   const n = frag(`<div class="restart-note flash" role="status">${icon('refresh')}
-    <div class="rn-text"><b>Game restart required</b>
-    <span>Blue Archive loads account data at login - the player must restart the game to see this change.</span></div>
-    <button class="rn-x" title="Dismiss">✕</button></div>`);
+    <div class="rn-text"><b>${escapeHtml(t('restart.required'))}</b>
+    <span>${escapeHtml(t('restart.description'))}</span></div>
+    <button class="rn-x" title="${escapeHtml(t('common.dismiss'))}">✕</button></div>`);
   n.querySelector('.rn-x').addEventListener('click', () => { n.remove(); restartNoteEl = null; });
   (document.getElementById('restartSlot') || document.body).appendChild(n);
   restartNoteEl = n;
@@ -150,20 +151,20 @@ export function modal({ title, body, footer, wide, onClose }) {
 }
 
 // Numeric amount prompt as a modal - window.prompt() throws in Electron.
-export function promptAmount({ title, confirmLabel = 'Confirm', value = 1, onConfirm }) {
+export function promptAmount({ title, confirmLabel = t('common.confirm'), value = 1, onConfirm }) {
   const amt = input({ value, type: 'number' });
   const ok = button(confirmLabel, { variant: 'primary', iconName: 'check' });
-  const cancel = button('Cancel', { variant: 'ghost' });
-  const ref = modal({ title, body: el('div', {}, field('Amount', amt)), footer: [cancel, ok] });
+  const cancel = button(t('common.cancel'), { variant: 'ghost' });
+  const ref = modal({ title, body: el('div', {}, field(t('common.amount'), amt)), footer: [cancel, ok] });
   cancel.addEventListener('click', ref.close);
   ok.addEventListener('click', () => { ref.close(); onConfirm(Math.max(1, Number(amt.value) || 1)); });
   setTimeout(() => { amt.focus(); amt.select(); }, 50);
 }
 
-export function confirmDialog({ title = 'Confirm', message, confirmLabel = 'Confirm', danger = false }) {
+export function confirmDialog({ title = t('common.confirm'), message, confirmLabel = t('common.confirm'), danger = false }) {
   return new Promise((resolve) => {
     const yes = button(confirmLabel, { variant: danger ? 'danger' : 'primary', iconName: 'check' });
-    const no = button('Cancel', { variant: 'ghost' });
+    const no = button(t('common.cancel'), { variant: 'ghost' });
     const ref = modal({
       title,
       body: el('div', { style: { fontSize: '14px', color: 'var(--ink-2)', lineHeight: '1.6' } }, message),
@@ -177,7 +178,7 @@ export function confirmDialog({ title = 'Confirm', message, confirmLabel = 'Conf
 
 export function openPicker({ title, loader, onPick }) {
   const list = el('div.picker-list', {});
-  const search = input({ placeholder: 'Search by name or ID...', className: 'input picker-search' });
+  const search = input({ placeholder: t('common.searchByNameOrId'), className: 'input picker-search' });
   let timer;
 
   async function load(q) {
@@ -185,14 +186,14 @@ export function openPicker({ title, loader, onPick }) {
     try {
       const items = await loader(q);
       list.innerHTML = '';
-      if (!items.length) { list.innerHTML = `<div class="empty"><b>Nothing found</b></div>`; return; }
+      if (!items.length) { list.innerHTML = `<div class="empty"><b>${escapeHtml(t('common.nothingFound'))}</b></div>`; return; }
       for (const it of items) {
         const row = frag(`<div class="picker-item"><span class="pi-id">${it.id}</span><span class="pi-name">${escapeHtml(it.name)}</span>${it.sub ? `<span class="tag grey">${escapeHtml(it.sub)}</span>` : ''}</div>`);
         row.addEventListener('click', () => { ref.close(); onPick(it); });
         list.appendChild(row);
       }
     } catch (e) {
-      list.innerHTML = `<div class="empty"><b>Failed to load</b><span>${escapeHtml(String(e.message || e))}</span></div>`;
+      list.innerHTML = `<div class="empty"><b>${escapeHtml(t('common.failedToLoad'))}</b><span>${escapeHtml(String(e.message || e))}</span></div>`;
     }
   }
   search.addEventListener('input', () => { clearTimeout(timer); timer = setTimeout(() => load(search.value.trim()), 220); });
@@ -205,18 +206,20 @@ export function openPicker({ title, loader, onPick }) {
 export function escapeHtml(s) {
   return String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
-export function num(n) { return Number(n ?? 0).toLocaleString('en-US'); }
+export function num(n) { return Number(n ?? 0).toLocaleString(getLanguage() === 'zh-CN' ? 'zh-CN' : 'en-US'); }
 export function stars(n) { return '★'.repeat(Math.max(0, Math.min(5, n))) + '☆'.repeat(Math.max(0, 5 - n)); }
 export function shortDate(s) {
   if (!s) return '-';
   const d = new Date(s);
   if (isNaN(d)) return String(s);
-  return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleString(getLanguage() === 'zh-CN' ? 'zh-CN' : 'en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 export function relTime(secs) {
   secs = Math.max(0, Math.floor(secs));
   const h = Math.floor(secs / 3600), m = Math.floor((secs % 3600) / 60), s = secs % 60;
-  return h ? `${h}h ${m}m` : m ? `${m}m ${s}s` : `${s}s`;
+  return h ? t('time.hoursMinutes', { hours: h, minutes: m })
+    : m ? t('time.minutesSeconds', { minutes: m, seconds: s })
+      : t('time.seconds', { seconds: s });
 }
 
 // Collect whatever arrives between animation frames and hand it over in one call. Appending a node and then reading scrollHeight back to stay pinned to the bottom is a forced layout, so doing it per log line costs 2.1s of main-thread time for 4000 lines against 116ms for the same lines flushed a frame at a time - during a battle the renderer never catches up and the window stops answering the button that would stop the server.

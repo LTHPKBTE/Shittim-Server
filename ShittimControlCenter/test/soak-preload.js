@@ -10,7 +10,7 @@ window.__procState = (d) => stateSubs.forEach((f) => f(d));
 
 window.host = {
   paths: async () => ({ projectDir: 'C:\\soak', dataDir: 'C:\\soak\\data' }),
-  settingsRead: async () => ({}),
+  settingsRead: async () => ({ language: process.env.SOAK_LANGUAGE || 'en' }),
   settingsWrite: async () => ({ ok: true }),
   configRead: async () => ({ data: { ServerConfiguration: { HostPort: '5599' } } }),
   configWrite: async () => ({ ok: true }),

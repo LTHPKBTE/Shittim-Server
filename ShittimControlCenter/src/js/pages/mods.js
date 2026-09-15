@@ -1,14 +1,15 @@
 import { el, frag, clear, button, input, field, toast, confirmDialog, modal, openPicker, escapeHtml } from '../ui.js';
 import { api } from '../api.js';
 import { gate } from './_util.js';
+import { t } from '../i18n.js';
 
 const SECTIONS = [
-  { id: 'characters', name: 'Custom characters', desc: 'Clone a student onto a free id and edit her profile, stats and school.' },
+  { id: 'characters', name: () => t('mods.customCharacters'), desc: () => t('mods.customCharactersDescription') },
 ];
 
 export default {
   id: 'mods',
-  title: 'Mods',  icon: 'flask',
+  get title() { return t('nav.mods'); },  icon: 'flask',
   needsTarget: false,
 
   mount(root) {
@@ -30,44 +31,50 @@ export default {
     function menu() {
       const list = el('div.picker-list', {});
       for (const s of SECTIONS) {
-        const row = frag(`<div class="picker-item"><span class="pi-name">${escapeHtml(s.name)}</span><span class="muted" style="font-size:12px;flex:2;min-width:0">${escapeHtml(s.desc)}</span></div>`);
+        const row = frag(`<div class="picker-item"><span class="pi-name">${escapeHtml(s.name())}</span><span class="muted" style="font-size:12px;flex:2;min-width:0">${escapeHtml(s.desc())}</span></div>`);
         row.addEventListener('click', () => go(s.id));
         list.appendChild(row);
       }
       host.appendChild(el('div.card', {},
-        el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: 'Mods' }), el('span.sub', { text: 'edits the game data, not the account' })),
+        el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t('nav.mods') }), el('span.sub', { text: t('mods.subtitle') })),
         el('div.card-body', {}, list,
-          frag('<p class="muted" style="font-size:12px;margin:12px 0 0;line-height:1.6">Everything here writes to the ExcelDB the server reads and to the copy inside the game install, so the server has to be restarted and the game relaunched before a change shows up.</p>'))));
+          el('p.muted', { text: t('mods.description'), style: { fontSize: '12px', margin: '12px 0 0', lineHeight: '1.6' } }))));
     }
 
     function characters() {
-      const back = button('Back', { variant: 'ghost', sm: true, iconName: 'x', onClick: () => go('menu') });
-      const add = button('Add character', { variant: 'primary', sm: true, iconName: 'plus', onClick: importFlow });
+      const back = button(t('common.back'), { variant: 'ghost', sm: true, iconName: 'x', onClick: () => go('menu') });
+      const add = button(t('mods.addCharacter'), { variant: 'primary', sm: true, iconName: 'plus', onClick: importFlow });
       const body = el('div.card-body', {});
       host.appendChild(el('div.card', {},
-        el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: 'Custom characters' }), el('div.spacer', {}), back, add),
+        el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t('mods.customCharacters') }), el('div.spacer', {}), back, add),
         body));
 
       body.innerHTML = '<div class="empty"><div class="spinner"></div></div>';
       api.modsCharacters().then((data) => {
         clear(body);
         if (!data.characters.length) {
-          body.appendChild(frag('<div class="empty"><b>No custom characters</b><span>Add one from a zip and it gets cloned onto a free student id.</span></div>'));
+          body.appendChild(el('div.empty', {}, el('b', { text: t('mods.noCustomCharacters') }), el('span', { text: t('mods.noCustomCharactersDescription') })));
         } else {
           const list = el('div.picker-list', {});
           for (const c of data.characters) {
-            const row = frag(`<div class="picker-item"><span class="pi-id">${c.id}</span><span class="pi-name">${escapeHtml(c.name || 'unnamed')}</span><span class="tag grey">from ${c.donorId}</span>${c.assets.length ? `<span class="tag">${c.assets.length} file${c.assets.length === 1 ? '' : 's'}</span>` : ''}</div>`);
+            const assetLabel = c.assets.length === 1
+              ? t('mods.fileCountOne', { count: c.assets.length })
+              : t('mods.fileCountOther', { count: c.assets.length });
+            const row = frag(`<div class="picker-item"><span class="pi-id">${c.id}</span><span class="pi-name">${escapeHtml(c.name || t('mods.unnamed'))}</span><span class="tag grey">${escapeHtml(t('mods.fromDonor', { id: c.donorId }))}</span>${c.assets.length ? `<span class="tag">${escapeHtml(assetLabel)}</span>` : ''}</div>`);
             row.addEventListener('click', () => go('editor', c.id));
             list.appendChild(row);
           }
           body.appendChild(list);
         }
-        body.appendChild(frag(`<p class="muted" style="font-size:12px;margin:12px 0 0;line-height:1.6">Writing to ${data.databases} ExcelDB cop${data.databases === 1 ? 'y' : 'ies'}. A backup is taken next to each one the first time a mod is installed.</p>`));
-      }).catch((e) => { body.innerHTML = `<div class="empty"><b>Couldn't load</b><span>${escapeHtml(String(e.message || e))}</span></div>`; });
+        body.appendChild(el('p.muted', { text: data.databases === 1
+          ? t('mods.databaseCopiesOne', { count: data.databases })
+          : t('mods.databaseCopiesOther', { count: data.databases }),
+        style: { fontSize: '12px', margin: '12px 0 0', lineHeight: '1.6' } }));
+      }).catch((e) => { body.innerHTML = `<div class="empty"><b>${escapeHtml(t('common.couldNotLoad'))}</b><span>${escapeHtml(String(e.message || e))}</span></div>`; });
     }
 
     async function importFlow() {
-      const zipPath = await window.host.pickFile([{ name: 'Character mod', extensions: ['zip'] }]);
+      const zipPath = await window.host.pickFile([{ name: t('mods.characterModFile'), extensions: ['zip'] }]);
       if (!zipPath) return;
 
       let info;
@@ -78,58 +85,61 @@ export default {
       let donorName = null;
 
       const name = input({ value: info.name || '', placeholder: 'Shirakami Suzu' });
-      const id = input({ type: 'number', placeholder: 'next free id' });
+      const id = input({ type: 'number', placeholder: t('mods.nextFreeId') });
       const donorLabel = el('div', {});
-      const pickDonor = button('Choose donor', { variant: 'ghost', sm: true, iconName: 'users', onClick: () => {
-        openPicker({ title: 'Borrow from', loader: (q) => api.staticCharacters(q).then((r) => r.map((x) => ({ id: x.id, name: x.name, sub: `★${x.maxStar}` }))),
+      const pickDonor = button(t('mods.chooseDonor'), { variant: 'ghost', sm: true, iconName: 'users', onClick: () => {
+        openPicker({ title: t('mods.borrowFrom'), loader: (q) => api.staticCharacters(q).then((r) => r.map((x) => ({ id: x.id, name: x.name, sub: `★${x.maxStar}` }))),
           onPick: (it) => { donorId = it.id; donorName = it.name; paintDonor(); } });
       }});
       function paintDonor() {
         clear(donorLabel);
-        if (donorId) donorLabel.appendChild(frag(`<div class="chip"><div class="chip-ic">${'★'}</div><div class="chip-main"><b>${escapeHtml(donorName || ('Character ' + donorId))}</b><span>id ${donorId}</span></div></div>`));
-        else donorLabel.appendChild(frag('<div class="muted" style="font-size:12.5px">Pick the student whose rows the new one is built from</div>'));
+        if (donorId) donorLabel.appendChild(frag(`<div class="chip"><div class="chip-ic">${'★'}</div><div class="chip-main"><b>${escapeHtml(donorName || t('mods.characterWithId', { id: donorId }))}</b><span>${escapeHtml(t('mods.idLabel', { id: donorId }))}</span></div></div>`));
+        else donorLabel.appendChild(el('div.muted', { text: t('mods.pickDonorDescription'), style: { fontSize: '12.5px' } }));
       }
       paintDonor();
 
-      const staged = info.assets.length
-        ? `<p class="muted" style="font-size:12px;margin:12px 0 0;line-height:1.6">${info.assets.length} art/audio file${info.assets.length === 1 ? '' : 's'} in the zip get copied into the mods folder but are <b>not</b> installed - a new asset path cannot be registered without repacking the game's addressable catalog, so she draws the donor's art.</p>`
-        : '<p class="muted" style="font-size:12px;margin:12px 0 0;line-height:1.6">The zip carries no art, so she draws the donor\'s.</p>';
+      const stagedText = info.assets.length === 1
+        ? t('mods.stagedAssetsOne', { count: info.assets.length })
+        : info.assets.length > 1
+          ? t('mods.stagedAssetsOther', { count: info.assets.length })
+          : t('mods.noArtInZip');
+      const staged = frag(`<p class="muted" style="font-size:12px;margin:12px 0 0;line-height:1.6">${stagedText}</p>`);
 
-      const install = button('Install', { variant: 'primary', iconName: 'download' });
-      const cancel = button('Cancel', { variant: 'ghost' });
+      const install = button(t('common.install'), { variant: 'primary', iconName: 'download' });
+      const cancel = button(t('common.cancel'), { variant: 'ghost' });
       const ref = modal({
-        title: 'Add custom character', wide: true,
+        title: t('mods.addCustomCharacter'), wide: true,
         body: el('div', {},
-          field('Name', name, 'shown on the card and in the student list'),
+          field(t('common.name'), name, t('mods.nameHint')),
           el('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', margin: '0 0 14px' } }, donorLabel, el('div.spacer', {}), pickDonor),
-          field('Character id', id, 'leave blank to take the next free one'),
+          field(t('mods.characterId'), id, t('mods.characterIdHint')),
           frag(`<div class="muted mono" data-selectable style="font-size:11px;overflow-wrap:anywhere">${escapeHtml(zipPath)}</div>`),
-          frag(staged)),
+          staged),
         footer: [cancel, install],
       });
       cancel.addEventListener('click', ref.close);
       install.addEventListener('click', async () => {
-        if (!donorId) { toast('Pick a donor student first', 'warn'); return; }
+        if (!donorId) { toast(t('mods.pickDonorFirst'), 'warn'); return; }
         install.disabled = true;
         try {
           const made = await api.modsImport({ zipPath, donorId, id: id.value ? parseInt(id.value, 10) : null, name: name.value.trim(), overrides: info.overrides || {} });
           ref.close();
-          toast(`${made.name} installed as ${made.id}`, 'good', 'Restart the server');
+          toast(t('mods.installedAs', { name: made.name, id: made.id }), 'good', t('mods.restartServer'));
           paint();
         } catch (e) { install.disabled = false; toast(e.message, 'bad'); }
       });
     }
 
     function editor(id) {
-      const back = button('Back', { variant: 'ghost', sm: true, iconName: 'x', onClick: () => go('characters') });
+      const back = button(t('common.back'), { variant: 'ghost', sm: true, iconName: 'x', onClick: () => go('characters') });
       const body = el('div.card-body', {});
-      const head = el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: 'Character ' + id }), el('div.spacer', {}), back);
+      const head = el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t('mods.characterWithId', { id }) }), el('div.spacer', {}), back);
       host.appendChild(el('div.card', {}, head, body));
 
       body.innerHTML = '<div class="empty"><div class="spinner"></div></div>';
       api.modsCharacter(id).then((d) => {
         clear(body);
-        head.querySelector('h3').textContent = `${d.name || 'unnamed'} - ${id}`;
+        head.querySelector('h3').textContent = t('mods.characterEditorTitle', { name: d.name || t('mods.unnamed'), id });
 
         const name = input({ value: d.name || '' });
         const inputs = { character: {}, profile: {}, stat: {} };
@@ -145,13 +155,13 @@ export default {
           return el('div', {}, el('div', { text: title, style: { fontSize: '13px', fontWeight: '600', margin: '18px 0 10px' } }), grid);
         }
 
-        body.appendChild(field('Display name', name, 'the LocalizeEtc row this character points at'));
+        body.appendChild(field(t('mods.displayName'), name, t('mods.displayNameHint')));
         body.appendChild(el('div', {},
-          group('Character', d.character, inputs.character, false),
-          group('Profile', d.profile, inputs.profile, false),
-          group('Stats', d.stat, inputs.stat, true)));
+          group(t('mods.group.character'), d.character, inputs.character, false),
+          group(t('mods.group.profile'), d.profile, inputs.profile, false),
+          group(t('mods.group.stats'), d.stat, inputs.stat, true)));
 
-        const save = button('Save', { variant: 'primary', iconName: 'save', onClick: async () => {
+        const save = button(t('common.save'), { variant: 'primary', iconName: 'save', onClick: async () => {
           const payload = { name: name.value.trim() };
           for (const part of ['character', 'profile', 'stat']) {
             const changed = {};
@@ -163,22 +173,24 @@ export default {
           save.disabled = true;
           try {
             await api.modsUpdate(id, payload);
-            toast('Saved - restart the server for it to take', 'good');
+            toast(t('mods.savedRestartRequired'), 'good');
             go('characters');
           } catch (e) { save.disabled = false; toast(e.message, 'bad'); }
         }});
-        const remove = button('Delete character', { variant: 'danger', iconName: 'trash', onClick: async () => {
-          const ok = await confirmDialog({ title: 'Delete character', confirmLabel: 'Delete', danger: true,
-            message: `Every row cloned for ${id} is dropped from all ExcelDB copies. Accounts that already own her keep a row pointing at an id that no longer exists.` });
+        const remove = button(t('mods.deleteCharacter'), { variant: 'danger', iconName: 'trash', onClick: async () => {
+          const ok = await confirmDialog({ title: t('mods.deleteCharacter'), confirmLabel: t('common.delete'), danger: true,
+            message: t('mods.deleteCharacterConfirm', { id }) });
           if (!ok) return;
-          try { await api.modsRemove(id); toast('Deleted', 'warn'); go('characters'); }
+          try { await api.modsRemove(id); toast(t('common.deleted'), 'warn'); go('characters'); }
           catch (e) { toast(e.message, 'bad'); }
         }});
 
         body.appendChild(el('div.row.wrap', { style: { gap: '10px', marginTop: '20px' } }, save, remove, el('div.spacer', {}),
-          d.assets.length ? frag(`<span class="tag grey">${d.assets.length} staged file${d.assets.length === 1 ? '' : 's'}</span>`) : null,
-          d.donorId ? frag(`<span class="tag">cloned from ${d.donorId}</span>`) : null));
-      }).catch((e) => { body.innerHTML = `<div class="empty"><b>Couldn't load</b><span>${escapeHtml(String(e.message || e))}</span></div>`; });
+          d.assets.length ? el('span.tag.grey', { text: d.assets.length === 1
+            ? t('mods.stagedFileCountOne', { count: d.assets.length })
+            : t('mods.stagedFileCountOther', { count: d.assets.length }) }) : null,
+          d.donorId ? el('span.tag', { text: t('mods.clonedFrom', { id: d.donorId }) }) : null));
+      }).catch((e) => { body.innerHTML = `<div class="empty"><b>${escapeHtml(t('common.couldNotLoad'))}</b><span>${escapeHtml(String(e.message || e))}</span></div>`; });
     }
   },
 };

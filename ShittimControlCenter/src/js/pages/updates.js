@@ -1,10 +1,10 @@
 import { el, frag, clear, button, toast, escapeHtml } from '../ui.js';
-import { icon } from '../icons.js';
+import { t } from '../i18n.js';
 
 // Git-free updater. "Check" compares the locally recorded commit (a download marker, or - for a real git checkout - HEAD) against origin/<branch> through the GitHub API and lists the incoming changelog.
 export default {
   id: 'updates',
-  title: 'Updates',  icon: 'download',
+  get title() { return t('nav.updates'); },  icon: 'download',
   needsTarget: false,
 
   mount(root) {
@@ -14,20 +14,20 @@ export default {
     const headInfo = el('div', { style: { minWidth: '0' } });
     const resultBody = el('div', { style: { minWidth: '0', marginTop: '14px' } });
 
-    const checkBtn = button('Check for updates', { variant: 'primary', sm: true, iconName: 'refresh', onClick: doCheck });
+    const checkBtn = button(t('updates.checkForUpdates'), { variant: 'primary', sm: true, iconName: 'refresh', onClick: doCheck });
 
     const versionCard = el('div.card', {},
-      el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: 'Version' }),
+      el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t('updates.version') }),
         el('span.sub', { text: 'Neoexm/Shittim-Server - main' }), el('div.spacer', {}), checkBtn),
       el('div.card-body', {}, headInfo, resultBody));
 
-    const rebuildBtn = button('Rebuild server', { variant: 'ghost', iconName: 'bolt', onClick: doRebuild });
-    const selfBtn = button('Check for app update', { variant: 'ghost', iconName: 'refresh', onClick: doSelfCheck });
+    const rebuildBtn = button(t('updates.rebuildServer'), { variant: 'ghost', iconName: 'bolt', onClick: doRebuild });
+    const selfBtn = button(t('updates.checkForAppUpdate'), { variant: 'ghost', iconName: 'refresh', onClick: doSelfCheck });
     const maintCard = el('div.card', { style: { marginTop: '18px' } },
-      el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: 'Maintenance' })),
+      el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t('updates.maintenance') })),
       el('div.card-body', {},
         el('p', {
-          html: 'Installing an update rebuilds the server for you, so this button is only for rebuilding by hand - after editing the source yourself, or when a build failed. A running server is stopped for the build and started again afterwards, and the output streams to the console. The Control Center app updates itself separately from GitHub Releases: it checks on launch and prompts you.',
+          text: t('updates.maintenanceDescription'),
           style: { fontSize: '13px', color: 'var(--ink-2)', margin: '0 0 14px', lineHeight: '1.6' },
         }),
         el('div.row.wrap', { style: { gap: '10px' } }, rebuildBtn, selfBtn)));
@@ -37,12 +37,12 @@ export default {
 
     paintHead(null);
     clear(resultBody);
-    resultBody.appendChild(spinnerRow('Checking origin/main...'));
+    resultBody.appendChild(spinnerRow(t('updates.checkingOrigin')));
     doCheck();
 
     function sourceTag(info) {
       if (!info || !info.localSource) return null;
-      const label = info.localSource === 'git' ? 'git checkout' : 'downloaded';
+      const label = info.localSource === 'git' ? t('updates.source.gitCheckout') : t('updates.source.downloaded');
       return el('span.tag.grey', { text: label });
     }
 
@@ -50,14 +50,14 @@ export default {
       clear(headInfo);
       const row = el('div', { style: { display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap', minWidth: '0' } });
       if (!info || !info.ok) {
-        row.appendChild(el('span', { text: 'Current project', style: { fontSize: '13px', color: 'var(--ink-2)' } }));
+        row.appendChild(el('span', { text: t('updates.currentProject'), style: { fontSize: '13px', color: 'var(--ink-2)' } }));
       } else if (info.versionKnown === false) {
-        row.appendChild(el('span', { text: 'Installed copy', style: { fontSize: '12.5px', color: 'var(--ink-3)' } }));
+        row.appendChild(el('span', { text: t('updates.installedCopy'), style: { fontSize: '12.5px', color: 'var(--ink-3)' } }));
         if (info.branch) row.appendChild(el('span.tag', { text: info.branch }));
-        row.appendChild(el('span.tag.gold', { text: 'version unknown' }));
+        row.appendChild(el('span.tag.gold', { text: t('updates.versionUnknown') }));
         const st = sourceTag(info); if (st) row.appendChild(st);
       } else {
-        row.appendChild(el('span', { text: 'On branch', style: { fontSize: '12.5px', color: 'var(--ink-3)' } }));
+        row.appendChild(el('span', { text: t('updates.onBranch'), style: { fontSize: '12.5px', color: 'var(--ink-3)' } }));
         row.appendChild(el('span.tag', { text: info.branch || 'main' }));
         if (info.head) row.appendChild(el('span.mono', { text: info.head, 'data-selectable': true, style: { fontSize: '12.5px', color: 'var(--blue-ink)' } }));
         const st = sourceTag(info); if (st) row.appendChild(st);
@@ -90,8 +90,8 @@ export default {
 
     function updateNote(r) {
       const text = r.localSource === 'git'
-        ? 'Installed via git - the update is a fast-forward pull and will never overwrite local edits.'
-        : 'Updating re-downloads the latest source from GitHub. Your <b>Config</b>, database and build output are left untouched, but any edits to source files will be replaced.';
+        ? t('updates.note.git')
+        : t('updates.note.download');
       return el('p', {
         html: text,
         style: { fontSize: '12px', color: 'var(--ink-3)', margin: '12px 0 0', lineHeight: '1.6' },
@@ -101,7 +101,7 @@ export default {
     function renderResult(r) {
       clear(resultBody);
       if (!r || !r.ok) {
-        resultBody.appendChild(statusRow('bad', 'Check failed', (r && r.error) || 'Unknown error'));
+        resultBody.appendChild(statusRow('bad', t('updates.checkFailed'), (r && r.error) || t('common.unknownError')));
         return;
       }
       paintHead(r);
@@ -109,26 +109,30 @@ export default {
       // Can't quantify the gap (no marker, or a commit GitHub can't diff). Offer a clean re-download of the latest source.
       if (r.versionKnown === false || r.compareFailed) {
         const why = r.versionKnown === false
-          ? 'This copy has no version marker, so its exact commit is unknown.'
-          : 'This copy sits on a commit GitHub cannot diff against the branch (a local build or diverged history).';
-        resultBody.appendChild(statusRow('warn', 'Cannot compare versions',
-          `${why} Latest on origin/${r.branch} is ${r.remoteShort}${r.remoteWhen ? ` - ${r.remoteWhen}` : ''}.`));
+          ? t('updates.compare.noVersionMarker')
+          : t('updates.compare.cannotDiffCommit');
+        resultBody.appendChild(statusRow('warn', t('updates.cannotCompareVersions'),
+          t('updates.compare.latestOnOrigin', { why, branch: r.branch, commit: r.remoteShort, when: r.remoteWhen ? ` - ${r.remoteWhen}` : '' })));
         if (r.remoteSubject) resultBody.appendChild(remoteLine(r));
         resultBody.appendChild(updateNote(r));
-        const btn = button('Download latest', { variant: 'primary', iconName: 'download', onClick: () => doInstall(r) });
+        const btn = button(t('updates.downloadLatest'), { variant: 'primary', iconName: 'download', onClick: () => doInstall(r) });
         resultBody.appendChild(el('div', { style: { marginTop: '16px' } }, btn));
         return;
       }
 
       if ((r.behind || 0) <= 0) {
-        resultBody.appendChild(statusRow('good', 'Up to date',
+        resultBody.appendChild(statusRow('good', t('updates.upToDate'),
           r.ahead > 0
-            ? `You are ${r.ahead} local commit${r.ahead === 1 ? '' : 's'} ahead of origin/${r.branch}.`
+            ? (r.ahead === 1
+              ? t('updates.aheadOne', { count: r.ahead, branch: r.branch })
+              : t('updates.aheadOther', { count: r.ahead, branch: r.branch }))
             : ''));
         return;
       }
 
-      resultBody.appendChild(statusRow('warn', `${r.behind} update${r.behind === 1 ? '' : 's'} available`));
+      resultBody.appendChild(statusRow('warn', r.behind === 1
+        ? t('updates.availableOne', { count: r.behind })
+        : t('updates.availableOther', { count: r.behind })));
       resultBody.appendChild(updateNote(r));
 
       if (r.commits && r.commits.length) {
@@ -146,7 +150,9 @@ export default {
         resultBody.appendChild(list);
       }
 
-      const installBtn = button(`Install ${r.behind} update${r.behind === 1 ? '' : 's'}`, { variant: 'primary', iconName: 'download', onClick: () => doInstall(r) });
+      const installBtn = button(r.behind === 1
+        ? t('updates.installOne', { count: r.behind })
+        : t('updates.installOther', { count: r.behind }), { variant: 'primary', iconName: 'download', onClick: () => doInstall(r) });
       resultBody.appendChild(el('div', { style: { marginTop: '16px' } }, installBtn));
     }
 
@@ -160,13 +166,13 @@ export default {
     async function doCheck() {
       checkBtn.disabled = true;
       clear(resultBody);
-      resultBody.appendChild(spinnerRow('Checking origin/main...'));
+      resultBody.appendChild(spinnerRow(t('updates.checkingOrigin')));
       try {
         last = await window.host.updatesCheck();
         renderResult(last);
       } catch (e) {
         clear(resultBody);
-        resultBody.appendChild(statusRow('bad', 'Check failed', String(e.message || e)));
+        resultBody.appendChild(statusRow('bad', t('updates.checkFailed'), String(e.message || e)));
       } finally {
         checkBtn.disabled = false;
       }
@@ -180,16 +186,18 @@ export default {
 
     async function doInstall(r) {
       clear(resultBody);
-      const prog = spinnerRow(r.localSource === 'git' ? 'Pulling origin/main...' : 'Updating from GitHub...');
+      const prog = spinnerRow(r.localSource === 'git' ? t('updates.pullingOrigin') : t('updates.updatingFromGitHub'));
       resultBody.appendChild(prog);
 
       if (r.localSource !== 'git') {
         progUnsub = window.host.onProjectProgress((d) => {
-          if (d.phase === 'download') prog._label.textContent = d.total ? `Downloading... ${fmtBytes(d.recv)} / ${fmtBytes(d.total)}` : `Downloading... ${fmtBytes(d.recv)}`;
-          else if (d.phase === 'resolve') prog._label.textContent = 'Resolving latest commit...';
-          else if (d.phase === 'extract') prog._label.textContent = 'Extracting...';
-          else if (d.phase === 'install') prog._label.textContent = 'Installing files...';
-          else if (d.phase === 'done') prog._label.textContent = 'Finishing...';
+          if (d.phase === 'download') prog._label.textContent = d.total
+            ? t('updates.progress.downloadingTotal', { received: fmtBytes(d.recv), total: fmtBytes(d.total) })
+            : t('updates.progress.downloading', { received: fmtBytes(d.recv) });
+          else if (d.phase === 'resolve') prog._label.textContent = t('updates.progress.resolving');
+          else if (d.phase === 'extract') prog._label.textContent = t('updates.progress.extracting');
+          else if (d.phase === 'install') prog._label.textContent = t('updates.progress.installing');
+          else if (d.phase === 'done') prog._label.textContent = t('updates.progress.finishing');
         });
       }
 
@@ -198,35 +206,41 @@ export default {
         if (progUnsub) { progUnsub(); progUnsub = null; }
         clear(resultBody);
         if (res.ok) {
-          toast(`Updated to ${res.head || 'latest'} - rebuilding`, 'good', 'Update installed');
+          toast(t('updates.toast.updatedRebuilding', { version: res.head || t('updates.latest') }), 'good', t('updates.updateInstalled'));
           // The update only writes source. Without the build the server keeps launching the old bin/Debug exe and the update looks like it did nothing.
-          resultBody.appendChild(spinnerRow('Rebuilding the server... (output in the console)'));
+          resultBody.appendChild(spinnerRow(t('updates.rebuildingWithConsole')));
           const built = await window.host.updatesRebuild();
           clear(resultBody);
           if (built.ok) {
-            toast('Server rebuilt successfully', 'good');
-            resultBody.appendChild(statusRow('good', 'Update installed', `Now at ${res.head || 'latest'} and rebuilt${built.restarted ? '. The server is back up' : ''}. Restart the control center when convenient.`));
+            toast(t('updates.serverRebuiltSuccessfully'), 'good');
+            resultBody.appendChild(statusRow('good', t('updates.updateInstalled'), built.restarted
+              ? t('updates.installedDetailRestarted', { version: res.head || t('updates.latest') })
+              : t('updates.installedDetail', { version: res.head || t('updates.latest') })));
           } else {
-            toast(built.error || `Build failed (code ${built.code})`, 'bad', 'Rebuild failed');
-            resultBody.appendChild(statusRow('warn', 'Updated, but the rebuild failed', `Now at ${res.head || 'latest'}, though the previous build is still what runs. ${built.error || `dotnet build exited with code ${built.code}`} - the console has the full output.`));
-            const rb = button('Try the rebuild again', { variant: 'ghost', iconName: 'bolt', onClick: doRebuild });
+            toast(built.error || t('updates.buildFailedCode', { code: built.code }), 'bad', t('updates.rebuildFailed'));
+            resultBody.appendChild(statusRow('warn', t('updates.updatedRebuildFailed'),
+              t('updates.rebuildFailedDetail', {
+                version: res.head || t('updates.latest'),
+                reason: built.error || t('updates.dotnetExitedCode', { code: built.code }),
+              })));
+            const rb = button(t('updates.tryRebuildAgain'), { variant: 'ghost', iconName: 'bolt', onClick: doRebuild });
             resultBody.appendChild(el('div', { style: { marginTop: '14px' } }, rb));
           }
         } else {
-          toast('Update could not be applied', 'bad');
+          toast(t('updates.couldNotApply'), 'bad');
           const detail = res.method === 'git'
-            ? 'Your local edits or a diverged branch blocked the fast-forward pull. Nothing was changed - commit or stash local changes and try again.'
-            : (res.error || 'The download could not be completed. Nothing was changed.');
-          resultBody.appendChild(statusRow('bad', res.method === 'git' ? 'Could not fast-forward' : 'Update failed', detail));
+            ? t('updates.fastForwardBlocked')
+            : (res.error || t('updates.downloadIncomplete'));
+          resultBody.appendChild(statusRow('bad', res.method === 'git' ? t('updates.couldNotFastForward') : t('updates.updateFailed'), detail));
           if (res.output) resultBody.appendChild(el('pre.mono', { text: res.output, 'data-selectable': true, style: { marginTop: '12px', padding: '12px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 'var(--r-sm)', fontSize: '11.5px', color: 'var(--ink-2)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '30vh', overflow: 'auto' } }));
-          const retry = button('Check again', { variant: 'ghost', iconName: 'refresh', onClick: doCheck });
+          const retry = button(t('updates.checkAgain'), { variant: 'ghost', iconName: 'refresh', onClick: doCheck });
           resultBody.appendChild(el('div', { style: { marginTop: '14px' } }, retry));
         }
       } catch (e) {
         if (progUnsub) { progUnsub(); progUnsub = null; }
         toast(String(e.message || e), 'bad');
         clear(resultBody);
-        resultBody.appendChild(statusRow('bad', 'Update failed', String(e.message || e)));
+        resultBody.appendChild(statusRow('bad', t('updates.updateFailed'), String(e.message || e)));
       }
     }
 
@@ -234,17 +248,17 @@ export default {
       selfBtn.disabled = true;
       try {
         const r = await window.host.updatesCheckSelf();
-        if (r.dev) { toast('Running from source - pull the repo and restart to update the app.', 'warn', 'Dev build'); return; }
-        if (!r.ok) { toast(r.error || 'Update check failed.', 'bad', 'App update'); return; }
+        if (r.dev) { toast(t('updates.self.runningFromSource'), 'warn', t('updates.self.devBuild')); return; }
+        if (!r.ok) { toast(r.error || t('updates.self.checkFailed'), 'bad', t('updates.self.appUpdate')); return; }
         if (r.portable) {
-          if (r.available) toast(`Control Center ${r.version} is available - this build can't update in place, use the download page from the prompt.`, 'good', 'Update available');
-          else toast(`Control Center is up to date (v${r.current}).`, 'good', 'App update');
+          if (r.available) toast(t('updates.self.portableAvailable', { version: r.version }), 'good', t('updates.self.updateAvailable'));
+          else toast(t('updates.self.upToDate', { version: r.current }), 'good', t('updates.self.appUpdate'));
           return;
         }
-        if (r.available) toast(`Control Center ${r.version} is available - follow the prompt to install.`, 'good', 'Update available');
-        else toast(`Control Center is up to date (v${r.current}).`, 'good', 'App update');
+        if (r.available) toast(t('updates.self.available', { version: r.version }), 'good', t('updates.self.updateAvailable'));
+        else toast(t('updates.self.upToDate', { version: r.current }), 'good', t('updates.self.appUpdate'));
       } catch (e) {
-        toast(String(e.message || e), 'bad', 'App update');
+        toast(String(e.message || e), 'bad', t('updates.self.appUpdate'));
       } finally {
         selfBtn.disabled = false;
       }
@@ -252,10 +266,10 @@ export default {
 
     async function doRebuild() {
       rebuildBtn.disabled = true;
-      toast('Rebuilding server... (output in the console)', 'good', 'dotnet build');
+      toast(t('updates.rebuildingWithConsole'), 'good', 'dotnet build');
       try {
         const res = await window.host.updatesRebuild();
-        toast(res.ok ? 'Server rebuilt successfully' : (res.error || `Build failed (code ${res.code})`), res.ok ? 'good' : 'bad');
+        toast(res.ok ? t('updates.serverRebuiltSuccessfully') : (res.error || t('updates.buildFailedCode', { code: res.code })), res.ok ? 'good' : 'bad');
       } catch (e) {
         toast(String(e.message || e), 'bad');
       } finally {

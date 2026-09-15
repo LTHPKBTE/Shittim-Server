@@ -1,5 +1,5 @@
 import { el, frag, clear, button, toast, escapeHtml } from './ui.js';
-import { icon } from './icons.js';
+import { t } from './i18n.js';
 
 const BRAND_IMG = '../Sprite/Common_Icon_Setting_Account.png';
 
@@ -32,12 +32,10 @@ export function renderProjectGate(appRoot, status, { titlebar }) {
 
   // A folder that was set and has since gone - unplugged drive, renamed, network share down - reads as "not found" unless it says so, and downloading a second copy over the top strands the database in the folder that is still there.
   const gone = status.configuredMissing && status.configured;
-  const heading = gone ? 'Server project folder is missing' : 'Server project not found';
+  const heading = gone ? t('projectGate.missing.title') : t('projectGate.notFound.title');
   const blurb = gone
-    ? `The control center is set to <span class="mono">${escapeHtml(status.configured)}</span>, and that folder is not there right now.
-          If it lives on a drive that is not plugged in, connect it and restart. Downloading a fresh copy leaves the
-          database and configuration in the old folder.`
-    : `The control center needs the Shittim-Server project to run.`;
+    ? t('projectGate.missing.description', { path: `<span class="mono">${escapeHtml(status.configured)}</span>` })
+    : t('projectGate.notFound.description');
 
   col.appendChild(frag(`
     <div style="display:flex;align-items:center;gap:14px;margin-bottom:6px">
@@ -56,7 +54,7 @@ export function renderProjectGate(appRoot, status, { titlebar }) {
     'data-selectable': true,
     style: { fontSize: '12px', color: 'var(--blue-ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: '0' },
   });
-  const changeBtn = button('Change...', { variant: 'ghost', sm: true, iconName: 'folder', onClick: async () => {
+  const changeBtn = button(t('projectGate.change'), { variant: 'ghost', sm: true, iconName: 'folder', onClick: async () => {
     if (busy) return;
     const picked = await window.host.pickFolder();
     if (!picked) return;
@@ -64,7 +62,7 @@ export function renderProjectGate(appRoot, status, { titlebar }) {
     targetLabel.textContent = targetDir;
   }});
 
-  const dlBtn = button('Download latest project', { variant: 'primary', iconName: 'download', onClick: doDownload });
+  const dlBtn = button(t('projectGate.downloadProject'), { variant: 'primary', iconName: 'download', onClick: doDownload });
 
   const progressWrap = el('div', { style: { display: 'none', marginTop: '14px' } });
   const progressBar = el('div', { style: { height: '100%', width: '0%', background: 'var(--blue)', borderRadius: '999px', transition: 'width .15s ease' } });
@@ -74,27 +72,27 @@ export function renderProjectGate(appRoot, status, { titlebar }) {
   progressWrap.appendChild(progressText);
 
   const downloadCard = el('div.card', {},
-    el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: 'Download latest' }),
+    el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t('projectGate.downloadLatest') }),
       el('span.sub', { text: 'Neoexm/Shittim-Server - main' }), el('div.spacer', {})),
     el('div.card-body', {},
       el('p', {
-        html: 'Fetches a zip of the latest commit from GitHub.',
+        text: t('projectGate.downloadDescription'),
         style: { fontSize: '13px', color: 'var(--ink-2)', margin: '0 0 14px', lineHeight: '1.6' },
       }),
       el('div', { style: { display: 'flex', alignItems: 'center', gap: '10px', minWidth: '0', padding: '10px 12px', background: 'var(--surface-2)', border: '1px solid var(--line)', borderRadius: 'var(--r-sm)' } },
-        el('span', { text: 'Install to', style: { fontSize: '11.5px', fontWeight: '700', color: 'var(--ink-3)', flex: 'none' } }),
+        el('span', { text: t('projectGate.installTo'), style: { fontSize: '11.5px', fontWeight: '700', color: 'var(--ink-3)', flex: 'none' } }),
         targetLabel, el('div.spacer', { style: { flex: '1' } }), changeBtn),
       el('div', { style: { marginTop: '16px' } }, dlBtn),
       progressWrap));
 
   col.appendChild(downloadCard);
 
-  const locateBtn = button('Locate folder...', { variant: 'ghost', iconName: 'folder', onClick: doLocate });
+  const locateBtn = button(t('projectGate.locateFolder'), { variant: 'ghost', iconName: 'folder', onClick: doLocate });
   const locateCard = el('div.card', { style: { marginTop: '16px' } },
-    el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: 'Use an existing folder' })),
+    el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t('projectGate.useExistingFolder') })),
     el('div.card-body', {},
       el('p', {
-        html: 'Choose the repo folder (the one that contains <b>Shittim-Server</b>) or the <b>Shittim-Server</b> project folder itself.',
+        html: t('projectGate.locateDescription'),
         style: { fontSize: '13px', color: 'var(--ink-2)', margin: '0 0 14px', lineHeight: '1.6' },
       }),
       locateBtn));
@@ -118,38 +116,40 @@ export function renderProjectGate(appRoot, status, { titlebar }) {
   async function doDownload() {
     if (busy) return;
     setBusy(true);
-    showProgress(2, 'Starting...');
+    showProgress(2, t('projectGate.progress.starting'));
     unsub = window.host.onProjectProgress((d) => {
       if (d.phase === 'download') {
         const pct = d.total ? (d.recv / d.total) * 100 : 0;
-        showProgress(d.total ? pct : 8, d.total ? `Downloading... ${fmtBytes(d.recv)} / ${fmtBytes(d.total)}` : `Downloading... ${fmtBytes(d.recv)}`);
+        showProgress(d.total ? pct : 8, d.total
+          ? t('projectGate.progress.downloadingTotal', { received: fmtBytes(d.recv), total: fmtBytes(d.total) })
+          : t('projectGate.progress.downloading', { received: fmtBytes(d.recv) }));
       } else if (d.phase === 'resolve') {
-        showProgress(4, 'Resolving latest commit...');
+        showProgress(4, t('projectGate.progress.resolving'));
       } else if (d.phase === 'extract') {
-        showProgress(92, 'Extracting...');
+        showProgress(92, t('projectGate.progress.extracting'));
       } else if (d.phase === 'install') {
-        showProgress(97, 'Installing files...');
+        showProgress(97, t('projectGate.progress.installing'));
       } else if (d.phase === 'done') {
-        showProgress(100, 'Done');
+        showProgress(100, t('projectGate.progress.done'));
       } else if (d.phase === 'error') {
-        showProgress(100, d.message || 'Failed');
+        showProgress(100, d.message || t('projectGate.progress.failed'));
       }
     });
     try {
       const res = await window.host.projectDownload({ targetDir });
       if (unsub) { unsub(); unsub = null; }
       if (res && res.ok) {
-        showProgress(100, `Installed ${res.sha || ''} - starting...`);
-        toast('Project downloaded', 'good', 'Ready');
+        showProgress(100, t('projectGate.progress.installedStarting', { sha: res.sha || '' }));
+        toast(t('projectGate.toast.downloaded'), 'good', t('common.ready'));
         setTimeout(() => location.reload(), 500);
       } else {
-        toast((res && res.error) || 'Download failed', 'bad');
-        showProgress(100, (res && res.error) || 'Download failed');
+        toast((res && res.error) || t('projectGate.downloadFailed'), 'bad');
+        showProgress(100, (res && res.error) || t('projectGate.downloadFailed'));
         setBusy(false);
       }
     } catch (e) {
       if (unsub) { unsub(); unsub = null; }
-      toast(String(e.message || e), 'bad', 'Download failed');
+      toast(String(e.message || e), 'bad', t('projectGate.downloadFailed'));
       setBusy(false);
     }
   }
@@ -162,10 +162,10 @@ export function renderProjectGate(appRoot, status, { titlebar }) {
     try {
       const res = await window.host.projectSetPath(picked);
       if (res && res.ok) {
-        toast('Project located', 'good', 'Ready');
+        toast(t('projectGate.toast.located'), 'good', t('common.ready'));
         setTimeout(() => location.reload(), 350);
       } else {
-        toast((res && res.error) || 'No project found in that folder.', 'bad', 'Not found');
+        toast((res && res.error) || t('projectGate.noProjectInFolder'), 'bad', t('projectGate.notFound.short'));
         setBusy(false);
       }
     } catch (e) {

@@ -1,10 +1,11 @@
 import { el, frag, clear, button, input, field, toast, confirmDialog, openPicker, escapeHtml } from '../ui.js';
 import { api } from '../api.js';
+import { t } from '../i18n.js';
 import { gate, loadInto } from './_util.js';
 
 export default {
   id: 'rates',
-  title: 'Gacha',  icon: 'rates',
+  get title() { return t('gacha.title'); },  icon: 'rates',
   needsTarget: false,
 
   mount(root) {
@@ -29,52 +30,57 @@ export default {
         bar.appendChild(seg(r, 'var(--good)'));
         clear(totalTag);
         const ok = Math.abs(total - 100) < 0.001;
-        totalTag.appendChild(frag(`<span class="pill ${ok ? 'good' : 'warn'}"><span class="dot"></span>Total ${total.toFixed(1)}%</span>`));
+        totalTag.appendChild(el(`span.pill.${ok ? 'good' : 'warn'}`, {}, el('span.dot', {}), t('gacha.rates.total', { total: total.toFixed(1) })));
       }
       [fSsr, fSr, fR].forEach((i) => i.addEventListener('input', paintBar));
 
-      const normalize = button('Normalise to 100%', { variant: 'ghost', sm: true, iconName: 'rates', onClick: () => {
+      const normalize = button(t('gacha.rates.normalize'), { variant: 'ghost', sm: true, iconName: 'rates', onClick: () => {
         let ssr = +fSsr.value || 0, sr = +fSr.value || 0, r = +fR.value || 0;
-        const t = ssr + sr + r;
-        if (!t) { toast('Enter some rates first', 'warn'); return; }
-        fSsr.value = ((ssr / t) * 100).toFixed(2); fSr.value = ((sr / t) * 100).toFixed(2); fR.value = ((r / t) * 100).toFixed(2);
+        const rateTotal = ssr + sr + r;
+        if (!rateTotal) { toast(t('gacha.rates.enterFirst'), 'warn'); return; }
+        fSsr.value = ((ssr / rateTotal) * 100).toFixed(2); fSr.value = ((sr / rateTotal) * 100).toFixed(2); fR.value = ((r / rateTotal) * 100).toFixed(2);
         paintBar();
       }});
 
       const ratesCard = el('div.card', {},
-        el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: 'Drop rates' }), el('div.spacer', {}), totalTag),
+        el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t('gacha.rates.title') }), el('div.spacer', {}), totalTag),
         el('div.card-body', {},
-          el('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', minWidth: 0 } }, frag('<span class="tag gold">★3 SSR</span>'), frag('<span class="tag grey">★2 SR</span>'), frag('<span class="tag">★1 R</span>')),
+          el('div', { style: { display: 'flex', gap: '10px', alignItems: 'center', marginBottom: '6px', flexWrap: 'wrap', minWidth: 0 } },
+            el('span.tag.gold', { text: t('gacha.rates.ssrTag') }),
+            el('span.tag.grey', { text: t('gacha.rates.srTag') }),
+            el('span.tag', { text: t('gacha.rates.rTag') })),
           bar,
           el('div.grid-3', { style: { marginTop: '14px' } },
-            field('SSR (★3) %', fSsr), field('SR (★2) %', fSr), field('R (★1) %', fR)),
+            field(t('gacha.rates.ssrLabel'), fSsr), field(t('gacha.rates.srLabel'), fSr), field(t('gacha.rates.rLabel'), fR)),
           el('div.row.wrap', { style: { gap: '10px' } }, normalize,
-            frag('<span class="muted" style="font-size:12px;min-width:0;flex:1 1 200px">Leave all at 0 and reset to fall back to the game\'s built-in rates.</span>'))));
+            el('span.muted', { text: t('gacha.rates.defaultHint'), style: { fontSize: '12px', minWidth: '0', flex: '1 1 200px' } }))));
 
       const guaranteedLabel = el('div', {});
       function paintGuaranteed() {
         clear(guaranteedLabel);
-        if (guaranteed) guaranteedLabel.appendChild(frag(`<div class="chip"><div class="chip-ic">${'★'}</div><div class="chip-main"><b>${escapeHtml(guaranteedName || ('Character ' + guaranteed))}</b><span>id ${guaranteed}</span></div></div>`));
-        else guaranteedLabel.appendChild(frag('<div class="muted" style="font-size:12.5px">No guaranteed pickup set</div>'));
+        if (guaranteed) guaranteedLabel.appendChild(el('div.chip', {}, el('div.chip-ic', { text: '★' }),
+          el('div.chip-main', {}, el('b', { text: guaranteedName || t('gacha.guaranteed.character', { id: guaranteed }) }),
+            el('span', { text: t('gacha.guaranteed.id', { id: guaranteed }) }))));
+        else guaranteedLabel.appendChild(el('div.muted', { text: t('gacha.guaranteed.none'), style: { fontSize: '12.5px' } }));
       }
-      const pickGuaranteed = button('Choose student', { variant: 'ghost', sm: true, iconName: 'users', onClick: () => {
-        openPicker({ title: 'Guaranteed student', loader: (q) => api.staticCharacters(q).then((r) => r.map((x) => ({ id: x.id, name: x.name, sub: `★${x.maxStar}` }))),
+      const pickGuaranteed = button(t('gacha.guaranteed.choose'), { variant: 'ghost', sm: true, iconName: 'users', onClick: () => {
+        openPicker({ title: t('gacha.guaranteed.pickerTitle'), loader: (q) => api.staticCharacters(q).then((r) => r.map((x) => ({ id: x.id, name: x.name, sub: `★${x.maxStar}` }))),
           onPick: (it) => { guaranteed = it.id; guaranteedName = it.name; paintGuaranteed(); } });
       }});
-      const clearGuaranteed = button('Clear', { variant: 'ghost', sm: true, iconName: 'x', onClick: () => { guaranteed = null; guaranteedName = null; paintGuaranteed(); } });
+      const clearGuaranteed = button(t('gacha.guaranteed.clear'), { variant: 'ghost', sm: true, iconName: 'x', onClick: () => { guaranteed = null; guaranteedName = null; paintGuaranteed(); } });
 
       const guaranteedCard = el('div.card', {},
-        el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: 'Guaranteed pickup' }), el('span.sub', { text: 'optional - overrides rates' }), el('div.spacer', {}), pickGuaranteed, clearGuaranteed),
+        el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t('gacha.guaranteed.title') }), el('span.sub', { text: t('gacha.guaranteed.optional') }), el('div.spacer', {}), pickGuaranteed, clearGuaranteed),
         el('div.card-body', {}, guaranteedLabel,
-          frag('<p class="muted" style="font-size:12px;margin:12px 0 0;line-height:1.6">Forcing a character on every pull can confuse the client if the student is not on the active banner.</p>')));
+          el('p.muted', { text: t('gacha.guaranteed.warning'), style: { fontSize: '12px', margin: '12px 0 0', lineHeight: '1.6' } })));
 
-      const saveBtn = button('Save rates', { variant: 'primary', iconName: 'save', onClick: save });
-      const resetBtn = button('Reset to defaults', { variant: 'ghost', iconName: 'refresh', onClick: reset });
+      const saveBtn = button(t('gacha.action.saveRates'), { variant: 'primary', iconName: 'save', onClick: save });
+      const resetBtn = button(t('gacha.action.resetDefaults'), { variant: 'ghost', iconName: 'refresh', onClick: reset });
       const saveBar = el('div.card', { style: { marginTop: '18px' } },
         el('div.card-body', { style: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' } },
           saveBtn, resetBtn, el('div.spacer', {}),
           frag(`<span class="muted mono" data-selectable style="font-size:11px;min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(cfg.path || '')}">${escapeHtml(cfg.path || '')}</span>`),
-          frag('<span class="pill blue"><span class="dot"></span>Hot-reloads within 5s</span>')));
+          el('span.pill.blue', {}, el('span.dot', {}), t('gacha.status.hotReload'))));
 
       root.appendChild(el('div.grid-2', { style: { alignItems: 'start' } }, ratesCard, guaranteedCard));
       root.appendChild(saveBar);
@@ -82,26 +88,26 @@ export default {
       paintGuaranteed();
 
       // banners are read-only (defined in the Excel data), listed for reference
-      root.appendChild(el('div', { text: 'Banners', style: { fontSize: '14px', fontWeight: '600', color: 'var(--ink)', margin: '22px 0 12px' } }));
+      root.appendChild(el('div', { text: t('gacha.banners.title'), style: { fontSize: '14px', fontWeight: '600', color: 'var(--ink)', margin: '22px 0 12px' } }));
       const bannerGrid = el('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 300px), 1fr))', gap: '16px', minWidth: '0' } });
       root.appendChild(bannerGrid);
       loadInto(bannerGrid, () => api.gachaBanners(), (grid, banners) => {
-        if (!banners.length) { grid.appendChild(frag('<div class="empty"><b>No banners found</b><span>Excel recruitment data is unavailable</span></div>')); return; }
+        if (!banners.length) { grid.appendChild(el('div.empty', {}, el('b', { text: t('gacha.banners.emptyTitle') }), el('span', { text: t('gacha.banners.emptyDescription') }))); return; }
         for (const b of banners) {
           const flags = [];
-          if (b.isNewbie) flags.push('<span class="tag gold">Newbie</span>');
-          if (b.isSelect) flags.push('<span class="tag">Selector</span>');
-          const feat = (b.featured || []).slice(0, 8)
-            .map((f) => `<span class="tag">${escapeHtml(f.name)}</span>`).join(' ') || '<span class="muted" style="font-size:12px">no featured students</span>';
-          grid.appendChild(frag(`<div class="banner-card">
-            <div class="bc-top">
-              <b style="font-family:var(--font-round);font-size:14.5px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" data-selectable>Banner ${escapeHtml(String(b.id))}</b>
-              <span class="bc-id" data-selectable>order ${escapeHtml(String(b.displayOrder))}</span>
-              <div style="flex:1;min-width:8px"></div>${flags.join(' ')}
-            </div>
-            <div class="bc-feat">${feat}</div>
-            <div class="muted" style="font-size:11.5px;color:var(--ink-3);overflow-wrap:anywhere" data-selectable>${b.saleFrom ? `${escapeHtml(b.saleFrom)} to ${escapeHtml(b.saleTo || '')}` : 'no sale window'}</div>
-          </div>`));
+          if (b.isNewbie) flags.push(el('span.tag.gold', { text: t('gacha.banner.newbie') }));
+          if (b.isSelect) flags.push(el('span.tag', { text: t('gacha.banner.selector') }));
+          const featured = (b.featured || []).slice(0, 8);
+          const feat = featured.length
+            ? featured.map((f) => el('span.tag', { text: f.name }))
+            : [el('span.muted', { text: t('gacha.banner.noFeatured'), style: { fontSize: '12px' } })];
+          grid.appendChild(el('div.banner-card', {},
+            el('div.bc-top', {},
+              el('b', { text: t('gacha.banner.label', { id: b.id }), 'data-selectable': true, style: { fontFamily: 'var(--font-round)', fontSize: '14.5px', minWidth: '0', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' } }),
+              el('span.bc-id', { text: t('gacha.banner.order', { order: b.displayOrder }), 'data-selectable': true }),
+              el('div', { style: { flex: '1', minWidth: '8px' } }), flags),
+            el('div.bc-feat', {}, feat),
+            el('div.muted', { text: b.saleFrom ? t('gacha.banner.saleWindow', { from: b.saleFrom, to: b.saleTo || '' }) : t('gacha.banner.noSaleWindow'), 'data-selectable': true, style: { fontSize: '11.5px', color: 'var(--ink-3)', overflowWrap: 'anywhere' } })));
         }
       });
 
@@ -110,17 +116,17 @@ export default {
         const clearRates = ssr === 0 && sr === 0 && r === 0;
         try {
           await api.setGachaConfig({ ssr, sr, r, guaranteed, clearRates });
-          toast('Gacha rates saved', 'good');
+          toast(t('gacha.toast.saved'), 'good');
         } catch (e) { toast(e.message, 'bad'); }
       }
       async function reset() {
-        const ok = await confirmDialog({ title: 'Reset gacha', confirmLabel: 'Reset', message: 'Clear custom rates and the guaranteed pickup, restoring the game defaults?' });
+        const ok = await confirmDialog({ title: t('gacha.reset.title'), confirmLabel: t('gacha.reset.confirm'), message: t('gacha.reset.message') });
         if (!ok) return;
         try {
           await api.setGachaConfig({ ssr: 0, sr: 0, r: 0, guaranteed: null, clearRates: true });
           fSsr.value = 0; fSr.value = 0; fR.value = 0; guaranteed = null; guaranteedName = null;
           paintBar(); paintGuaranteed();
-          toast('Reset to default rates', 'warn');
+          toast(t('gacha.toast.resetDone'), 'warn');
         } catch (e) { toast(e.message, 'bad'); }
       }
     });

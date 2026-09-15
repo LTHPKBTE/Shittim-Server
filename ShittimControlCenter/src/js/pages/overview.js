@@ -1,11 +1,12 @@
-import { el, frag, clear, button, toast } from '../ui.js';
+import { el, frag, clear, button, toast, escapeHtml } from '../ui.js';
+import { t } from '../i18n.js';
 
 function diagRow(name, info, fixBtn) {
   const status = info?.status || 'missing';
   const row = frag(`<div class="diag-row">
     <span class="d-led ${status}"></span>
-    <span class="d-name">${name}</span>
-    <span class="d-detail">${(info?.detail || '').replace(/</g, '&lt;')}</span>
+    <span class="d-name">${escapeHtml(name)}</span>
+    <span class="d-detail">${escapeHtml(info?.detail || '')}</span>
   </div>`);
   if (fixBtn) row.appendChild(fixBtn);
   return row;
@@ -13,7 +14,7 @@ function diagRow(name, info, fixBtn) {
 
 export default {
   id: 'overview',
-  title: 'Overview',
+  get title() { return t('nav.overview'); },
   icon: 'dashboard',
   needsTarget: false,
 
@@ -21,16 +22,16 @@ export default {
     const diagBody = el('div.diag', { style: { minWidth: '0' } });
 
     let busy = false;
-    const refreshBtn = button('Re-check', { variant: 'ghost', sm: true, iconName: 'refresh', onClick: () => loadDiag() });
-    const setupBtn = button('Install missing', { variant: 'primary', sm: true, iconName: 'download', onClick: () => runSetup('all') });
-    const readiness = cardWith('Environment readiness', null, [setupBtn, refreshBtn], diagBody);
+    const refreshBtn = button(t('overview.recheck'), { variant: 'ghost', sm: true, iconName: 'refresh', onClick: () => loadDiag() });
+    const setupBtn = button(t('overview.installMissing'), { variant: 'primary', sm: true, iconName: 'download', onClick: () => runSetup('all') });
+    const readiness = cardWith(t('overview.environmentReadiness'), null, [setupBtn, refreshBtn], diagBody);
 
     const shortcutBody = el('div.row.wrap', { style: { gap: '10px', minWidth: '0' } });
     const shortcuts = [
-      ['Server folder', 'folder', (p) => p.serverDir],
-      ['Proxy scripts', 'folder', (p) => p.scriptsDir],
-      ['Config file', 'config', (p) => p.configPath],
-      ['Database', 'inventory', (p) => p.dbPath],
+      [t('overview.shortcuts.serverFolder'), 'folder', (p) => p.serverDir],
+      [t('overview.shortcuts.proxyScripts'), 'folder', (p) => p.scriptsDir],
+      [t('overview.shortcuts.configFile'), 'config', (p) => p.configPath],
+      [t('overview.shortcuts.database'), 'inventory', (p) => p.dbPath],
     ];
     for (const [label, ic, pick] of shortcuts) {
       shortcutBody.appendChild(button(label, { variant: 'ghost', sm: true, iconName: ic, onClick: async () => {
@@ -38,37 +39,37 @@ export default {
         window.host.openPath(pick(p));
       }}));
     }
-    const shortcutsCard = cardWith('Shortcuts', null, [], shortcutBody);
+    const shortcutsCard = cardWith(t('overview.shortcuts.title'), null, [], shortcutBody);
 
     const hostsLine = el('p', { style: { fontSize: '12.5px', color: 'var(--ink-3)', margin: '12px 0 0', lineHeight: '1.6' } });
-    const offlineBtn = button('Start offline', { variant: 'primary', iconName: 'play', onClick: () => startOffline() });
-    const hostsBtn = button('Restore hosts file', { variant: 'ghost', sm: true, iconName: 'x', onClick: () => clearHosts() });
-    const offlineCard = cardWith('Offline mode', 'No route out, no name server', [],
+    const offlineBtn = button(t('overview.offline.start'), { variant: 'primary', iconName: 'play', onClick: () => startOffline() });
+    const hostsBtn = button(t('overview.offline.restoreHosts'), { variant: 'ghost', sm: true, iconName: 'x', onClick: () => clearHosts() });
+    const offlineCard = cardWith(t('overview.offline.title'), t('overview.offline.subtitle'), [],
       el('div', {},
         el('div.row.wrap', { style: { gap: '10px', minWidth: '0' } }, offlineBtn, hostsBtn),
-        el('p', { text: 'Brings the server and the proxy up with their offline switches on and points every host the client contacts at loopback, so nothing it asks for needs a name server or a route out. Steam still has to be running - offline mode is fine, but the client reads the SDK version back before it will boot at all.', style: { fontSize: '12.5px', color: 'var(--ink-3)', margin: '12px 0 0', lineHeight: '1.6' } }),
+        el('p', { text: t('overview.offline.description'), style: { fontSize: '12.5px', color: 'var(--ink-3)', margin: '12px 0 0', lineHeight: '1.6' } }),
         hostsLine));
 
-    const exportBtn = button('Export logs', { variant: 'ghost', iconName: 'save', onClick: async () => {
+    const exportBtn = button(t('overview.logs.export'), { variant: 'ghost', iconName: 'save', onClick: async () => {
       exportBtn.disabled = true;
       try {
         const r = await window.host.exportLogs();
         if (!r || r.canceled) return;
         if (r.ok) {
-          toast(`Bundled ${r.count} file${r.count === 1 ? '' : 's'} into ${r.name}.`, 'good', 'Logs exported');
+          toast(t(r.count === 1 ? 'overview.logs.bundledOne' : 'overview.logs.bundledMany', { count: r.count, name: r.name }), 'good', t('overview.logs.exported'));
           window.host.revealPath(r.path);
         } else {
-          toast(r.error || 'Could not export logs.', 'bad', 'Export failed');
+          toast(r.error || t('overview.logs.couldNotExport'), 'bad', t('overview.logs.exportFailed'));
         }
       } catch (e) {
-        toast(String(e.message || e), 'bad', 'Export failed');
+        toast(String(e.message || e), 'bad', t('overview.logs.exportFailed'));
       } finally {
         exportBtn.disabled = false;
       }
     }});
-    const diagnostics = cardWith('Diagnostics', null, [],
+    const diagnostics = cardWith(t('overview.diagnostics.title'), null, [],
       el('div', {}, exportBtn,
-        el('p', { text: 'Bundles the server log and a diagnostic snapshot into a zip to attach to bug reports.', style: { fontSize: '12.5px', color: 'var(--ink-3)', margin: '12px 0 0', lineHeight: '1.6' } })));
+        el('p', { text: t('overview.diagnostics.description'), style: { fontSize: '12.5px', color: 'var(--ink-3)', margin: '12px 0 0', lineHeight: '1.6' } })));
 
     const right = el('div', { style: { display: 'flex', flexDirection: 'column', gap: '18px', minWidth: '0' } }, offlineCard, shortcutsCard, diagnostics);
     root.appendChild(el('div.grid-2', { style: { gridTemplateColumns: 'minmax(0, 1.3fr) minmax(0, 1fr)', alignItems: 'start' } }, readiness, right));
@@ -77,7 +78,7 @@ export default {
       if (busy) return null;
       const ready = (info?.status || 'missing') === 'ready';
       if (ready) return null;
-      const label = step === 'certificate' ? 'Trust cert' : 'Install';
+      const label = step === 'certificate' ? t('overview.setup.trustCertificate') : t('overview.setup.install');
       return button(label, { variant: 'ghost', sm: true, iconName: 'download', onClick: () => runSetup(step) });
     }
 
@@ -86,17 +87,17 @@ export default {
       try {
         const env = await window.host.envCheck();
         clear(diagBody);
-        diagBody.appendChild(diagRow('.NET SDK', env.dotnet, fixBtn('dotnet', env.dotnet)));
-        diagBody.appendChild(diagRow('Server build', env.server));
-        diagBody.appendChild(diagRow('Game database', env.database));
+        diagBody.appendChild(diagRow(t('overview.environment.dotnetSdk'), env.dotnet, fixBtn('dotnet', env.dotnet)));
+        diagBody.appendChild(diagRow(t('overview.environment.serverBuild'), env.server));
+        diagBody.appendChild(diagRow(t('overview.environment.gameDatabase'), env.database));
         diagBody.appendChild(diagRow('mitmproxy', env.mitmproxy, fixBtn('mitmproxy', env.mitmproxy)));
-        diagBody.appendChild(diagRow('CA certificate', env.certificate, fixBtn('certificate', env.certificate)));
-        diagBody.appendChild(diagRow('Gateway keys', env.gateway));
-        diagBody.appendChild(diagRow('Redirect script', env.redirect));
+        diagBody.appendChild(diagRow(t('overview.environment.caCertificate'), env.certificate, fixBtn('certificate', env.certificate)));
+        diagBody.appendChild(diagRow(t('overview.environment.gatewayKeys'), env.gateway));
+        diagBody.appendChild(diagRow(t('overview.environment.redirectScript'), env.redirect));
         const anyMissing = ['dotnet', 'mitmproxy', 'certificate'].some((k) => (env[k]?.status || 'missing') !== 'ready');
         setupBtn.disabled = busy || !anyMissing;
       } catch (e) {
-        diagBody.innerHTML = `<div class="empty"><b>Check failed</b><span>${String(e.message || e)}</span></div>`;
+        diagBody.innerHTML = `<div class="empty"><b>${escapeHtml(t('overview.environment.checkFailed'))}</b><span>${escapeHtml(String(e.message || e))}</span></div>`;
       }
     }
 
@@ -105,8 +106,8 @@ export default {
         const s = await window.host.offlineStatus();
         hostsBtn.style.display = s.hosts ? '' : 'none';
         hostsLine.textContent = s.hosts
-          ? `${s.hostnames.length} hosts point at 127.0.0.2. Stopping the server puts the file back.`
-          : 'The hosts file has not been touched.';
+          ? t('overview.offline.hostsActive', { count: s.hostnames.length })
+          : t('overview.offline.hostsUntouched');
       } catch (e) {
         hostsLine.textContent = String(e.message || e);
       }
@@ -116,10 +117,10 @@ export default {
       offlineBtn.disabled = true;
       try {
         const r = await window.host.systemStartOffline();
-        if (r.ok) toast('Server and proxy are coming up offline.', 'good', 'Offline mode');
-        else toast(r.error || 'Could not start offline.', 'bad', 'Offline mode');
+        if (r.ok) toast(t('overview.offline.starting'), 'good', t('overview.offline.title'));
+        else toast(r.error || t('overview.offline.couldNotStart'), 'bad', t('overview.offline.title'));
       } catch (e) {
-        toast(String(e.message || e), 'bad', 'Offline mode');
+        toast(String(e.message || e), 'bad', t('overview.offline.title'));
       } finally {
         offlineBtn.disabled = false;
         loadOffline();
@@ -130,9 +131,9 @@ export default {
       hostsBtn.disabled = true;
       try {
         const r = await window.host.offlineHosts(false);
-        if (!r.ok) toast(r.error || 'Could not edit the hosts file.', 'bad', 'Offline mode');
+        if (!r.ok) toast(r.error || t('overview.offline.couldNotEditHosts'), 'bad', t('overview.offline.title'));
       } catch (e) {
-        toast(String(e.message || e), 'bad', 'Offline mode');
+        toast(String(e.message || e), 'bad', t('overview.offline.title'));
       } finally {
         hostsBtn.disabled = false;
         loadOffline();
@@ -157,19 +158,25 @@ export default {
       if (busy) return;
       busy = true;
       setupBtn.disabled = true; refreshBtn.disabled = true;
-      const labels = { dotnet: '.NET 10 SDK', mitmproxy: 'mitmproxy', certificate: 'CA certificate' };
+      const labels = { dotnet: '.NET 10 SDK', mitmproxy: 'mitmproxy', certificate: t('overview.environment.caCertificate') };
 
       clear(diagBody);
       const panel = setupPanel();
       diagBody.appendChild(panel.wrap);
 
       let curStep = which === 'all' ? 'dotnet' : which;
-      let msg = 'Starting...';
+      let msg = t('overview.setup.starting');
       const t0 = Date.now();
-      const elapsed = () => { const s = Math.floor((Date.now() - t0) / 1000); const m = Math.floor(s / 60); return m ? `${m}m ${s % 60}s` : `${s}s`; };
+      const elapsed = () => {
+        const seconds = Math.floor((Date.now() - t0) / 1000);
+        const minutes = Math.floor(seconds / 60);
+        return minutes
+          ? t('overview.setup.elapsedMinutes', { minutes, seconds: seconds % 60 })
+          : t('overview.setup.elapsedSeconds', { seconds });
+      };
       const render = () => {
-        panel.titleEl.textContent = `Installing ${labels[curStep] || curStep}...`;
-        panel.subEl.textContent = `${msg} - ${elapsed()} elapsed`;
+        panel.titleEl.textContent = t('overview.setup.installing', { name: labels[curStep] || curStep });
+        panel.subEl.textContent = t('overview.setup.progressElapsed', { message: msg, elapsed: elapsed() });
       };
       render();
       // tick every second so the elapsed time always moves, even while a step is mid-download and emitting nothing
@@ -177,23 +184,23 @@ export default {
 
       const unsub = window.host.onSetupProgress((d) => {
         if (d.step && labels[d.step]) curStep = d.step;
-        if (typeof d.recv === 'number' && d.total) msg = `Downloading... ${fmtMB(d.recv)} / ${fmtMB(d.total)}`;
+        if (typeof d.recv === 'number' && d.total) msg = t('overview.setup.downloading', { received: fmtMB(d.recv), total: fmtMB(d.total) });
         else if (d.status === 'running' && d.message) msg = d.message;
         if (d.line) panel.logEl.textContent = d.line;
-        if (d.status === 'done') { msg = d.message || `${labels[d.step] || d.step} ready`; toast(msg, 'good'); }
-        if (d.status === 'failed') { msg = d.message || `${labels[d.step] || d.step} failed`; toast(msg, 'bad'); }
+        if (d.status === 'done') { msg = d.message || t('overview.setup.stepReady', { name: labels[d.step] || d.step }); toast(msg, 'good'); }
+        if (d.status === 'failed') { msg = d.message || t('overview.setup.stepFailed', { name: labels[d.step] || d.step }); toast(msg, 'bad'); }
         render();
       });
 
       try {
         const res = await window.host.setupInstall(which);
-        if (res.ok) toast('All prerequisites are ready.', 'good', 'Setup complete');
+        if (res.ok) toast(t('overview.setup.allReady'), 'good', t('overview.setup.complete'));
         else {
           const failed = Object.entries(res.results || {}).filter(([, r]) => r && !r.ok).map(([k]) => labels[k] || k);
-          toast(failed.length ? `Couldn't complete: ${failed.join(', ')}.` : (res.error || 'Setup did not finish.'), 'bad', 'Setup incomplete');
+          toast(failed.length ? t('overview.setup.couldNotComplete', { steps: failed.join(', ') }) : (res.error || t('overview.setup.didNotFinish')), 'bad', t('overview.setup.incomplete'));
         }
       } catch (e) {
-        toast(String(e.message || e), 'bad', 'Setup failed');
+        toast(String(e.message || e), 'bad', t('overview.setup.failed'));
       } finally {
         clearInterval(timer);
         unsub();

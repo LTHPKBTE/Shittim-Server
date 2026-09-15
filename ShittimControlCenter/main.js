@@ -10,6 +10,9 @@ const { extractZip, installTree, resumeInterruptedInstall, backupUserData, write
 const { resolveRepoRoot, pathsFor, firstExisting, componentVersions, findMitmBinDir, mitmExe, dotnetExe } = require('./paths');
 const { killTree: killPidTree, streamLines } = require('./procs');
 const { thumbprint, trustedRoot } = require('./certs');
+const i18next = require('i18next');
+const localeEn = require('./src/locales/en.json');
+const localeZhCN = require('./src/locales/zh-CN.json');
 
 // The control center lives at <repoRoot>/ShittimControlCenter. Everything it drives (the server project, the database, the mitm scripts) is resolved relative to <repoRoot> so the app is portable as long as the layout holds.
 
@@ -22,6 +25,23 @@ function loadSettings() {
   } catch {
     return {};
   }
+}
+
+const mainI18n = i18next.createInstance();
+mainI18n.init({
+  lng: 'en',
+  fallbackLng: 'en',
+  supportedLngs: ['en', 'zh-CN'],
+  resources: { en: { translation: localeEn }, 'zh-CN': { translation: localeZhCN } },
+  keySeparator: false,
+  nsSeparator: false,
+  interpolation: { escapeValue: false },
+  initImmediate: false,
+});
+
+function mainT(key, options = {}) {
+  const language = loadSettings().language === 'zh-CN' ? 'zh-CN' : 'en';
+  return mainI18n.t(key, { ...options, lng: language });
 }
 // Throws when the settings cannot be persisted. A silent failure here is how a located project folder is forgotten by the next launch after the app has already said it was set.
 function saveSettings(patch) {
@@ -1050,9 +1070,9 @@ async function exportLogs() {
   const p = resolvePaths();
   const stamp = new Date().toISOString().replace(/[:T]/g, '-').replace(/\..+$/, '');
   const res = await dialog.showSaveDialog({
-    title: 'Export logs',
+    title: mainT('main.exportLogs'),
     defaultPath: path.join(documentsDir(), `shittim-logs-${stamp}.zip`),
-    filters: [{ name: 'Zip archive', extensions: ['zip'] }],
+    filters: [{ name: mainT('main.zipArchive'), extensions: ['zip'] }],
   });
   if (res.canceled || !res.filePath) return { ok: false, canceled: true };
   const destZip = res.filePath;
@@ -1138,13 +1158,12 @@ async function checkManualSelfUpdate() {
   const win = BrowserWindow.getAllWindows()[0] || null;
   const { response } = await dialog.showMessageBox(win, {
     type: 'info',
-    buttons: ['Open download page', 'Later'],
+    buttons: [mainT('main.openDownloadPage'), mainT('common.later')],
     defaultId: 0,
     cancelId: 1,
-    title: 'Control Center update available',
-    message: `Shittim Control Center ${latest} is available.`,
-    detail: `You are running ${app.getVersion()} as a build that cannot update itself in place. ` +
-      'Grab the new installer or portable exe from the releases page.',
+    title: mainT('main.updateAvailableTitle'),
+    message: mainT('main.updateAvailableMessage', { version: latest }),
+    detail: mainT('main.portableUpdateDetail', { version: app.getVersion() }),
   });
   if (response === 0) shell.openExternal(feed.htmlUrl);
   return { ok: true, portable: true, current: app.getVersion(), version: latest, available: true };
@@ -1185,12 +1204,12 @@ function setupAutoUpdate(win) {
       broadcast('update:self', { phase: 'available', version: info.version });
       const { response } = await dialog.showMessageBox(win, {
         type: 'info',
-        buttons: ['Download && install', 'Later'],
+        buttons: [mainT('main.downloadInstall'), mainT('common.later')],
         defaultId: 0,
         cancelId: 1,
-        title: 'Control Center update available',
-        message: `Shittim Control Center ${info.version} is available.`,
-        detail: `You are running ${app.getVersion()}. The update installs when you close the app.`,
+        title: mainT('main.updateAvailableTitle'),
+        message: mainT('main.updateAvailableMessage', { version: info.version }),
+        detail: mainT('main.installerUpdateDetail', { version: app.getVersion() }),
       });
       if (response === 0) {
         broadcast('update:self', { phase: 'downloading', percent: 0 });
@@ -1204,11 +1223,11 @@ function setupAutoUpdate(win) {
       broadcast('update:self', { phase: 'downloaded', version: info.version });
       const { response } = await dialog.showMessageBox(win, {
         type: 'info',
-        buttons: ['Restart now', 'On next quit'],
+        buttons: [mainT('main.restartNow'), mainT('main.onNextQuit')],
         defaultId: 0,
         cancelId: 1,
-        title: 'Update ready',
-        message: `Shittim Control Center ${info.version} downloaded.`,
+        title: mainT('main.updateReady'),
+        message: mainT('main.updateDownloaded', { version: info.version }),
       });
       if (response === 0) setImmediate(() => autoUpdater.quitAndInstall());
     });
@@ -1264,7 +1283,7 @@ function createWindow() {
     show: false,
     frame: false,
     backgroundColor: '#0d1826',
-    title: 'Shittim Control Center',
+    title: mainT('app.title'),
     icon: appIcon(),
     webPreferences: {
       preload: path.join(APP_DIR, 'preload.js'),

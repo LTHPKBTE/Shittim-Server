@@ -1,61 +1,62 @@
 import { el, frag, clear, button, input, select, toggle, field, toast, confirmDialog, escapeHtml, emptyState, shortDate, notifyRestart, modal, num } from '../ui.js';
 import { api, targetAccount } from '../api.js';
+import { t } from '../i18n.js';
 import { gate, loadInto } from './_util.js';
 
 // EventContentType values that are their own minigame rather than a stage/shop/mission attached to one.
-const MINIGAME_TYPES = {
-  MiniGameRhythm: 'Rhythm',
-  MinigameRhythmEvent: 'Rhythm',
-  MiniGameShooting: 'Shooting',
-  MiniGameTBG: 'Board game',
-  MiniGameDefense: 'Tower defense',
-  MinigameDreamMaker: 'Dream Maker',
-  MiniGameRoad: 'Road puzzle',
-  MiniGameCCG: 'Card battle',
-  DiceRace: 'Dice race',
-  Treasure: 'Treasure hunt',
-  Conquest: 'Conquest',
-  Field: 'Field',
-  EventLocation: 'Location',
-  CardShop: 'Card shop',
-  BoxGacha: 'Box gacha',
-  FortuneGachaShop: 'Fortune gacha',
+const MINIGAME_TYPE_KEYS = {
+  MiniGameRhythm: 'schedule.minigame.rhythm',
+  MinigameRhythmEvent: 'schedule.minigame.rhythm',
+  MiniGameShooting: 'schedule.minigame.shooting',
+  MiniGameTBG: 'schedule.minigame.boardGame',
+  MiniGameDefense: 'schedule.minigame.towerDefense',
+  MinigameDreamMaker: 'schedule.minigame.dreamMaker',
+  MiniGameRoad: 'schedule.minigame.roadPuzzle',
+  MiniGameCCG: 'schedule.minigame.cardBattle',
+  DiceRace: 'schedule.minigame.diceRace',
+  Treasure: 'schedule.minigame.treasureHunt',
+  Conquest: 'schedule.minigame.conquest',
+  Field: 'schedule.minigame.field',
+  EventLocation: 'schedule.minigame.location',
+  CardShop: 'schedule.minigame.cardShop',
+  BoxGacha: 'schedule.minigame.boxGacha',
+  FortuneGachaShop: 'schedule.minigame.fortuneGacha',
 };
 
 const FILTERS = [
-  { value: 'all', label: 'Everything' },
-  { value: 'minigame', label: 'Has a minigame' },
-  { value: 'on', label: 'Currently forced open' },
-  { value: 'rerun', label: 'Reruns' },
-  { value: 'rail', label: 'Shows a lobby icon' },
-  { value: 'unnamed', label: 'Never localized' },
+  { value: 'all', labelKey: 'schedule.filter.everything' },
+  { value: 'minigame', labelKey: 'schedule.filter.hasMinigame' },
+  { value: 'on', labelKey: 'schedule.filter.currentlyForcedOpen' },
+  { value: 'rerun', labelKey: 'schedule.filter.reruns' },
+  { value: 'rail', labelKey: 'schedule.filter.showsLobbyIcon' },
+  { value: 'unnamed', labelKey: 'schedule.filter.neverLocalized' },
 ];
 
 const SORTS = [
-  { value: 'new', label: 'Newest first' },
-  { value: 'old', label: 'Oldest first' },
-  { value: 'name', label: 'Name' },
+  { value: 'new', labelKey: 'schedule.sort.newestFirst' },
+  { value: 'old', labelKey: 'schedule.sort.oldestFirst' },
+  { value: 'name', labelKey: 'schedule.sort.name' },
 ];
 
 // Past this many lobby icons the dot bar under the rail keeps growing at a fixed pixel per dot and walks off the edge of the screen.
 const RAIL_COMFORTABLE = 8;
 
 // The event's own item names already read well enough ("Baddie's Apology Letter"), so the type is only there to say which of the three token slots it is.
-const ITEM_TYPES = {
-  EventPoint: 'Points',
-  EventToken1: 'Token 1',
-  EventToken2: 'Token 2',
-  EventToken3: 'Token 3',
-  EventToken4: 'Token 4',
-  EventToken5: 'Token 5',
-  EventMeetUpTicket: 'Outing pass',
-  EventEtcItem: 'Item',
-  Concentration: 'Concentration',
+const ITEM_TYPE_KEYS = {
+  EventPoint: 'schedule.itemType.points',
+  EventToken1: 'schedule.itemType.token1',
+  EventToken2: 'schedule.itemType.token2',
+  EventToken3: 'schedule.itemType.token3',
+  EventToken4: 'schedule.itemType.token4',
+  EventToken5: 'schedule.itemType.token5',
+  EventMeetUpTicket: 'schedule.itemType.outingPass',
+  EventEtcItem: 'schedule.itemType.item',
+  Concentration: 'schedule.itemType.concentration',
 };
 
 export default {
   id: 'schedule',
-  title: 'Events',  icon: 'play',
+  get title() { return t('schedule.title'); },  icon: 'play',
   needsTarget: false,
 
   mount(root) {
@@ -77,32 +78,38 @@ export default {
         }
         for (const members of families.values()) members.sort((a, b) => a.iconOrder - b.iconOrder || a.id - b.id);
 
-        const search = input({ placeholder: 'Name, id, student or minigame' });
-        const filter = select(FILTERS);
-        const sort = select(SORTS);
+        const search = input({ placeholder: t('schedule.search.placeholder') });
+        const filter = select(FILTERS.map((option) => ({ value: option.value, label: t(option.labelKey) })));
+        const sort = select(SORTS.map((option) => ({ value: option.value, label: t(option.labelKey) })));
         const count = el('span', {});
         const tb = el('tbody', {});
         // ticking a box must not re-run the filter under the cursor, so the only thing a toggle repaints is the count and the both-halves-on warnings
         const warns = [];
 
-        const tbl = frag('<table class="tbl" style="table-layout:fixed"><thead><tr><th>Event</th><th style="width:200px">Featured</th><th style="width:170px">Contents</th><th style="width:118px">Ran</th><th style="width:58px">Lobby</th><th style="width:64px">Open</th></tr></thead></table>');
+        const tbl = el('table.tbl', { style: { tableLayout: 'fixed' } }, el('thead', {}, el('tr', {},
+          el('th', { text: t('schedule.table.event') }),
+          el('th', { text: t('schedule.table.featured'), style: { width: '200px' } }),
+          el('th', { text: t('schedule.table.contents'), style: { width: '170px' } }),
+          el('th', { text: t('schedule.table.ran'), style: { width: '118px' } }),
+          el('th', { text: t('schedule.table.lobby'), style: { width: '58px' } }),
+          el('th', { text: t('schedule.table.open'), style: { width: '64px' } }))));
         tbl.appendChild(tb);
 
         const list = el('div.list-scroll', { style: { maxHeight: '52vh' } }, tbl);
-        const applyBtn = button('Apply', { variant: 'primary', iconName: 'save', sm: true, onClick: apply });
-        const clearBtn = button('Close everything', { variant: 'ghost', iconName: 'refresh', sm: true, onClick: closeAll });
+        const applyBtn = button(t('schedule.action.apply'), { variant: 'primary', iconName: 'save', sm: true, onClick: apply });
+        const clearBtn = button(t('schedule.action.closeEverything'), { variant: 'ghost', iconName: 'refresh', sm: true, onClick: closeAll });
         const card = el('div.card', {},
-          el('div.card-head', { style: { flexWrap: 'wrap', rowGap: '8px' } }, el('span.tab-mark', {}), el('h3', { text: 'Events and minigames' }),
-            el('span.sub', { text: `${events.length} in this client version` }), el('div.spacer', {}), count, applyBtn, clearBtn),
+          el('div.card-head', { style: { flexWrap: 'wrap', rowGap: '8px' } }, el('span.tab-mark', {}), el('h3', { text: t('schedule.card.title') }),
+            el('span.sub', { text: t('schedule.card.clientVersionCount', { count: events.length }) }), el('div.spacer', {}), count, applyBtn, clearBtn),
           el('div.card-body', { style: { paddingBottom: '8px' } },
             el('div.row.wrap', { style: { gap: '10px' } },
-              el('div', { style: { flex: '1', minWidth: '220px' } }, field('Find', search)),
-              el('div', { style: { width: '190px' } }, field('Show', filter)),
-              el('div', { style: { width: '160px' } }, field('Sort', sort)))),
+              el('div', { style: { flex: '1', minWidth: '220px' } }, field(t('schedule.search.label'), search)),
+              el('div', { style: { width: '190px' } }, field(t('schedule.filter.label'), filter)),
+              el('div', { style: { width: '160px' } }, field(t('schedule.sort.label'), sort)))),
           list);
 
         body.appendChild(card);
-        body.appendChild(frag('<p class="muted" style="font-size:12px;margin:14px 2px 0;line-height:1.6">The game reads its event table when it launches, so restart the client after applying. Nothing about an event\'s schedule is on the wire: the client works out for itself whether one is running by comparing the clock against the dates in its own table. Switching an event on here rewrites those dates in the installed game so they read as permanently open, and switching it off puts the shipped dates back. Any number can run at once - what an event switched on gets you is its icon on the lobby rail and its own menus, not a slot in the rotating banner on the front page. The schedule is re-applied every time the server starts, so a game update that replaces the table does not quietly close everything again.</p>'));
+        body.appendChild(el('p.muted', { text: t('schedule.description'), style: { fontSize: '12px', margin: '14px 2px 0', lineHeight: '1.6' } }));
 
         search.addEventListener('input', paint);
         filter.addEventListener('change', paint);
@@ -124,7 +131,7 @@ export default {
             || (e.key || '').toLowerCase().includes(q)
             || (e.students || []).some((s) => s.toLowerCase().includes(q))
             || (e.currency || []).some((c) => c.toLowerCase().includes(q))
-            || e.types.some((t) => t.toLowerCase().includes(q) || (MINIGAME_TYPES[t] || '').toLowerCase().includes(q));
+            || e.types.some((type) => type.toLowerCase().includes(q) || minigameTypeLabel(type).toLowerCase().includes(q));
         }
 
         function paint() {
@@ -147,7 +154,7 @@ export default {
 
           paintCount();
 
-          if (!shown.length) { tb.appendChild(el('tr', {}, el('td', { colSpan: 6 }, emptyState('Nothing matches')))); return; }
+          if (!shown.length) { tb.appendChild(el('tr', {}, el('td', { colSpan: 6 }, emptyState(t('schedule.empty.noMatches'))))); return; }
 
           for (const [, members] of shown) {
             members.forEach((e, i) => tb.appendChild(row(e, i > 0, members)));
@@ -156,16 +163,16 @@ export default {
 
         function row(e, indented, family) {
           const mg = minigames(e);
-          const contents = mg.length ? mg : (e.stages ? [`${e.stages} stages`] : []);
+          const contents = mg.length ? mg : (e.stages ? [t('schedule.event.stageCount', { count: e.stages })] : []);
           const featured = (e.students || []).length ? e.students.join(', ') : (e.currency || []).join(', ');
-          const tag = e.isReturn ? 'Rerun' : e.releaseType !== 'None' ? 'Permanent' : '';
+          const tag = e.isReturn ? t('schedule.event.rerun') : e.releaseType !== 'None' ? t('schedule.event.permanent') : '';
 
           const tr = frag(`<tr>
-            <td style="max-width:0;${indented ? 'padding-left:26px' : ''}"><b style="font-family:var(--font-round);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block">${escapeHtml(e.name)}</b><div class="muted" data-sub style="font-size:11px"><span data-selectable>#${e.id}</span>${tag ? ` - ${tag}` : ''}</div></td>
+            <td style="max-width:0;${indented ? 'padding-left:26px' : ''}"><b style="font-family:var(--font-round);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block">${escapeHtml(e.name)}</b><div class="muted" data-sub style="font-size:11px"><span data-selectable>#${e.id}</span>${tag ? ` - ${escapeHtml(tag)}` : ''}</div></td>
             <td class="muted" style="font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(featured || '-')}</td>
-            <td class="muted" style="font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(contents.length ? [...new Set(contents)].join(', ') : 'Story only')}</td>
+            <td class="muted" style="font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(contents.length ? [...new Set(contents)].join(', ') : t('schedule.event.storyOnly'))}</td>
             <td class="muted" style="font-size:11.5px;white-space:nowrap">${fmt(e.open)}<br>→ ${fmt(e.close)}</td>
-            <td style="font-size:11px">${e.rail ? '<span class="pill">Icon</span>' : '<span class="muted">Menu only</span>'}</td>
+            <td style="font-size:11px">${e.rail ? `<span class="pill">${escapeHtml(t('schedule.event.icon'))}</span>` : `<span class="muted">${escapeHtml(t('schedule.event.menuOnly'))}</span>`}</td>
             <td style="text-align:right"></td></tr>`);
 
           if (!indented && family.length > 1) {
@@ -174,7 +181,7 @@ export default {
             const refresh = () => {
               clear(warn);
               if (family.filter((m) => on.has(m.id)).length > 1)
-                warn.appendChild(frag('<span class="pill warn" style="margin-left:6px">Two runs at once</span>'));
+                warn.appendChild(el('span.pill.warn', { text: t('schedule.warning.twoRuns'), style: { marginLeft: '6px' } }));
             };
             refresh();
             warns.push(refresh);
@@ -203,25 +210,31 @@ export default {
           clear(count);
           const rail = railCount();
           const crowded = rail > RAIL_COMFORTABLE;
-          count.appendChild(frag(`<span class="pill ${crowded ? 'warn' : on.size ? 'good' : ''}" title="${crowded ? 'The row of dots under the lobby icons grows one dot per icon and runs off the screen past about ten' : ''}"><span class="dot"></span>${on.size ? `${on.size} forced open${rail ? `, ${rail} on the rail` : ''}` : 'All on their shipped dates'}</span>`));
+          const status = on.size
+            ? rail
+              ? t('schedule.count.forcedOpenOnRail', { count: on.size, rail })
+              : t('schedule.count.forcedOpen', { count: on.size })
+            : t('schedule.count.shippedDates');
+          count.appendChild(el(`span.pill${crowded ? '.warn' : on.size ? '.good' : ''}`,
+            { title: crowded ? t('schedule.count.crowdedHint') : '' }, el('span.dot', {}), status));
         }
 
         async function apply() {
           try {
             const out = await api.setEventSchedule({ enabled: [...on] });
-            toast(on.size ? `${on.size} event(s) forced open across ${out.rows} table rows` : 'Every event is back on its shipped dates', 'good', 'Client table rewritten');
+            toast(on.size ? t('schedule.toast.eventsForcedOpen', { count: on.size, rows: out.rows }) : t('schedule.toast.shippedDates'), 'good', t('schedule.toast.clientTableRewritten'));
             notifyRestart();
           } catch (e) { toast(e.message, 'bad'); }
         }
 
         async function closeAll() {
-          const ok = await confirmDialog({ title: 'Close everything', confirmLabel: 'Close everything',
-            message: 'Every event goes back to the dates it originally ran on, so anything long expired disappears from the client again. Progress already saved on the server is untouched.' });
+          const ok = await confirmDialog({ title: t('schedule.close.title'), confirmLabel: t('schedule.close.confirm'),
+            message: t('schedule.close.message') });
           if (!ok) return;
           on.clear();
           try {
             await api.setEventSchedule({ enabled: [] });
-            toast('Every event is back on its shipped dates', 'good');
+            toast(t('schedule.toast.shippedDates'), 'good');
             notifyRestart();
             paint();
           } catch (e) { toast(e.message, 'bad'); }
@@ -235,13 +248,13 @@ export default {
 function openUnlock(e, isOn) {
   const acc = targetAccount();
   const body = el('div', {});
-  const go = button('Unlock', { variant: 'primary', iconName: 'check' });
-  const cancel = button('Cancel', { variant: 'ghost' });
+  const go = button(t('schedule.unlock.action'), { variant: 'primary', iconName: 'check' });
+  const cancel = button(t('schedule.unlock.cancel'), { variant: 'ghost' });
   const ref = modal({ title: e.name, body, footer: [cancel, go] });
   cancel.addEventListener('click', ref.close);
 
   if (!acc) {
-    body.appendChild(frag('<p class="muted" style="font-size:13.5px;line-height:1.6;margin:0">Pick an account from the header first. Event points, stage clears and shop resets all belong to one save.</p>'));
+    body.appendChild(el('p.muted', { text: t('schedule.unlock.pickAccount'), style: { fontSize: '13.5px', lineHeight: '1.6', margin: '0' } }));
     go.disabled = true;
     return;
   }
@@ -253,31 +266,43 @@ function openUnlock(e, isOn) {
   loadInto(body, () => api.eventUnlocks(e.id, acc.serverId), (body, d) => {
     go.disabled = false;
 
-    body.appendChild(frag(`<p class="muted" style="font-size:12px;line-height:1.6;margin:0 0 14px">Writing to <b>${escapeHtml(acc.nickname)}</b> - #${acc.serverId}.${isOn ? '' : ' This event is not forced open, so none of it is reachable in the client until you switch it on and restart.'}</p>`));
+    body.appendChild(el('p.muted', {
+      text: t(isOn ? 'schedule.unlock.writingTo' : 'schedule.unlock.writingToClosed', { name: acc.nickname, id: acc.serverId }),
+      style: { fontSize: '12px', lineHeight: '1.6', margin: '0 0 14px' },
+    }));
 
     if (d.currency.length) {
       const grid = el('div', { style: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px 14px' } });
       for (const c of d.currency) {
         const box = input({ type: 'number', min: '0', placeholder: '0' });
         amounts.set(c.itemId, box);
-        const cost = c.costMax ? ` - a run costs ${c.costMin === c.costMax ? num(c.costMin) : `${num(c.costMin)}-${num(c.costMax)}`}` : '';
-        grid.appendChild(field(c.name || `Item ${c.itemId}`, box, `${ITEM_TYPES[c.type] || c.type} - holds ${num(c.held)}${cost}`));
+        const cost = c.costMax
+          ? c.costMin === c.costMax
+            ? t('schedule.currency.runCost', { cost: num(c.costMin) })
+            : t('schedule.currency.runCostRange', { min: num(c.costMin), max: num(c.costMax) })
+          : '';
+        grid.appendChild(field(c.name || t('schedule.currency.item', { id: c.itemId }), box,
+          t('schedule.currency.hint', { type: itemTypeLabel(c.type), held: num(c.held), cost })));
       }
       body.appendChild(el('div', { style: { marginBottom: '16px' } },
-        el('h4', { text: 'Event currency', style: { margin: '0 0 8px', fontSize: '13px' } }), grid));
+        el('h4', { text: t('schedule.currency.title'), style: { margin: '0 0 8px', fontSize: '13px' } }), grid));
     }
 
     const rows = [
-      d.stages.total && ['stages', 'Clear every stage', `${d.stages.total} stages, ${d.stages.cleared} already cleared. Everything gated behind stage progress opens with them.`],
-      d.missions.total && ['missions', 'Complete every mission', `${d.missions.total} missions, ${d.missions.done} already done. Rewards still have to be claimed in-game.`],
-      d.shop.total && ['shop', 'Reset shop purchase limits', `${d.shop.total} products, ${d.shop.bought} with a purchase on record.`],
-      d.collections.total && ['collections', 'Unlock the collection', `${d.collections.total} entries, ${d.collections.owned} already owned.`],
-      d.minigame.total && ['minigame', 'Unlock the minigame', `${d.minigame.names.map((n) => MINIGAME_TYPES[n] || n).join(', ')} is padlocked behind a story stage belonging to the event's rerun, so clearing this event's own stages never opens it. ${d.minigame.cleared} of ${d.minigame.total} already cleared.`],
-      d.minigameStages.total && ['minigameStages', 'Clear every minigame stage', `${d.minigameStages.kinds.join(' and ')} - ${d.minigameStages.total} stages, ${d.minigameStages.cleared} already cleared. Unlocking the minigame only opens the front door; this plays it through.`],
+      d.stages.total && ['stages', t('schedule.unlock.clearStages'), t('schedule.unlock.clearStagesHint', { total: d.stages.total, cleared: d.stages.cleared })],
+      d.missions.total && ['missions', t('schedule.unlock.completeMissions'), t('schedule.unlock.completeMissionsHint', { total: d.missions.total, done: d.missions.done })],
+      d.shop.total && ['shop', t('schedule.unlock.resetShop'), t('schedule.unlock.resetShopHint', { total: d.shop.total, bought: d.shop.bought })],
+      d.collections.total && ['collections', t('schedule.unlock.collection'), t('schedule.unlock.collectionHint', { total: d.collections.total, owned: d.collections.owned })],
+      d.minigame.total && ['minigame', t('schedule.unlock.minigame'), t('schedule.unlock.minigameHint', {
+        names: d.minigame.names.map(minigameTypeLabel).join(', '), cleared: d.minigame.cleared, total: d.minigame.total,
+      })],
+      d.minigameStages.total && ['minigameStages', t('schedule.unlock.clearMinigameStages'), t('schedule.unlock.clearMinigameStagesHint', {
+        kinds: d.minigameStages.kinds.join(t('schedule.list.and')), total: d.minigameStages.total, cleared: d.minigameStages.cleared,
+      })],
     ].filter(Boolean);
 
     if (!rows.length && !d.currency.length) {
-      body.appendChild(emptyState('Nothing to unlock', 'This event carries no stages, missions, shop or currency of its own'));
+      body.appendChild(emptyState(t('schedule.unlock.emptyTitle'), t('schedule.unlock.emptyDescription')));
       go.disabled = true;
       return;
     }
@@ -298,7 +323,7 @@ function openUnlock(e, isOn) {
       const v = Number(box.value) || 0;
       if (v > 0) currency[id] = v;
     }
-    if (!Object.keys(currency).length && !Object.values(picks).some(Boolean)) { toast('Nothing selected', 'warn'); return; }
+    if (!Object.keys(currency).length && !Object.values(picks).some(Boolean)) { toast(t('schedule.unlock.nothingSelected'), 'warn'); return; }
 
     go.disabled = true;
     try {
@@ -310,23 +335,33 @@ function openUnlock(e, isOn) {
       });
       ref.close();
       const done = [
-        r.stages && `${r.stages} stages cleared`,
-        r.missions && `${r.missions} missions completed`,
-        r.shop && `${r.shop} shop limits reset`,
-        r.collections && `${r.collections} collection entries`,
-        r.items && `${r.items} item stacks`,
-        r.minigame && 'minigame unlocked',
-        r.minigameStages && `${r.minigameStages} minigame stages cleared`,
+        r.stages && t('schedule.unlock.doneStages', { count: r.stages }),
+        r.missions && t('schedule.unlock.doneMissions', { count: r.missions }),
+        r.shop && t('schedule.unlock.doneShop', { count: r.shop }),
+        r.collections && t('schedule.unlock.doneCollections', { count: r.collections }),
+        r.items && t('schedule.unlock.doneItems', { count: r.items }),
+        r.minigame && t('schedule.unlock.doneMinigame'),
+        r.minigameStages && t('schedule.unlock.doneMinigameStages', { count: r.minigameStages }),
       ].filter(Boolean);
-      toast(done.length ? done.join(', ') : 'Nothing changed - it was all unlocked already', done.length ? 'good' : 'warn', e.name);
+      toast(done.length ? done.join(t('schedule.list.separator')) : t('schedule.unlock.nothingChanged'), done.length ? 'good' : 'warn', e.name);
     } catch (err) { go.disabled = false; toast(err.message, 'bad'); }
   });
 }
 
 // The server's minigames list is derived from the type name, which misses the ones whose type reads as a mode rather than a minigame (Conquest, Treasure, Field), so the label falls back to the full type list.
 function minigames(e) {
-  const named = (e.minigames || []).map((t) => MINIGAME_TYPES[t] || t);
-  return named.length ? named : e.types.filter((t) => MINIGAME_TYPES[t]).map((t) => MINIGAME_TYPES[t]);
+  const named = (e.minigames || []).map(minigameTypeLabel);
+  return named.length ? named : e.types.filter((type) => MINIGAME_TYPE_KEYS[type]).map(minigameTypeLabel);
+}
+
+function minigameTypeLabel(type) {
+  const key = MINIGAME_TYPE_KEYS[type];
+  return key ? t(key) : type;
+}
+
+function itemTypeLabel(type) {
+  const key = ITEM_TYPE_KEYS[type];
+  return key ? t(key) : type;
 }
 
 function fmt(s) {

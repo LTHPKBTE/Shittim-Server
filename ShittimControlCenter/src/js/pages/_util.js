@@ -1,5 +1,6 @@
-import { el, frag, clear, button } from '../ui.js';
+import { el, clear, button, escapeHtml } from '../ui.js';
 import { store, targetAccount } from '../api.js';
+import { t } from '../i18n.js';
 
 export function gate(root, opts, renderFn) {
   let prevOnline = store.get().online;
@@ -25,21 +26,21 @@ export function gate(root, opts, renderFn) {
 }
 
 export function offlinePanel() {
-  const go = button('Go to Overview', { variant: 'primary', iconName: 'server', onClick: () => (location.hash = '#/overview') });
+  const go = button(t('gate.offline.goToOverview'), { variant: 'primary', iconName: 'server', onClick: () => (location.hash = '#/overview') });
   // soft-navigate by triggering hashchange handler is overkill; reuse nav click
   go.addEventListener('click', () => document.querySelector('.nav-item[data-id="overview"]')?.click());
   return el('div.card', { style: { maxWidth: '560px', margin: '40px auto' } },
     el('div.card-body', { style: { textAlign: 'center', padding: '36px' } },
-      el('h3', { text: 'Server is offline', style: { marginBottom: '6px' } }),
-      el('p', { text: 'Start it from the status bar.', style: { color: 'var(--ink-2)', fontSize: '13.5px', margin: '0 auto 18px', maxWidth: '380px', lineHeight: '1.6' } }),
+      el('h3', { text: t('gate.offline.title'), style: { marginBottom: '6px' } }),
+      el('p', { text: t('gate.offline.description'), style: { color: 'var(--ink-2)', fontSize: '13.5px', margin: '0 auto 18px', maxWidth: '380px', lineHeight: '1.6' } }),
       go));
 }
 
 export function noTargetPanel() {
   return el('div.card', { style: { maxWidth: '520px', margin: '40px auto' } },
     el('div.card-body', { style: { textAlign: 'center', padding: '34px' } },
-      el('h3', { text: 'No account selected', style: { marginBottom: '6px' } }),
-      el('p', { text: 'Create an account in the Accounts view, then pick it from the selector in the header.', style: { color: 'var(--ink-2)', fontSize: '13.5px', lineHeight: '1.6' } })));
+      el('h3', { text: t('gate.noTarget.title'), style: { marginBottom: '6px' } }),
+      el('p', { text: t('gate.noTarget.description'), style: { color: 'var(--ink-2)', fontSize: '13.5px', lineHeight: '1.6' } })));
 }
 
 export async function loadInto(container, loader, render) {
@@ -49,6 +50,6 @@ export async function loadInto(container, loader, render) {
     clear(container);
     render(container, data);
   } catch (e) {
-    container.innerHTML = `<div class="empty"><b>Couldn't load</b><span>${String(e.message || e)}</span></div>`;
+    container.innerHTML = `<div class="empty"><b>${escapeHtml(t('common.couldNotLoad'))}</b><span>${escapeHtml(String(e.message || e))}</span></div>`;
   }
 }

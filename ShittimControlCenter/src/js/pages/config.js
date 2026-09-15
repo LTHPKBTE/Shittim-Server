@@ -1,5 +1,6 @@
-import { el, frag, clear, button, input, toggle, field, toast, modal, textarea, confirmDialog } from '../ui.js';
+import { el, frag, clear, button, input, select, toggle, field, toast, modal, textarea, confirmDialog } from '../ui.js';
 import { store } from '../api.js';
+import { t, getLanguage, SUPPORTED_LANGUAGES } from '../i18n.js';
 
 // Defaults mirror Shittim-Server/Configuration/ConfigType/ServerConfig.cs.
 // Reset overwrites only these editable ServerConfiguration fields, preserving GameVersion, gateway keys, ClientPluginDirectory and the Irc/DataFetcher sibling sections in Config.json.
@@ -33,72 +34,91 @@ const DEFAULT_SERVER_CONFIG = {
 
 const GROUPS = [
   {
-    title: 'Networking', icon: 'server',
+    titleKey: 'config.group.networking', icon: 'server',
     fields: [
-      { key: 'HostPort', label: 'API port', type: 'text', hint: 'default 5000' },
-      { key: 'GatewayPort', label: 'Gateway port', type: 'text', hint: 'default 5100' },
-      { key: 'EnableGateway', label: 'Enable gateway', type: 'bool' },
+      { key: 'HostPort', labelKey: 'config.field.apiPort', type: 'text', hintKey: 'config.hint.default5000' },
+      { key: 'GatewayPort', labelKey: 'config.field.gatewayPort', type: 'text', hintKey: 'config.hint.default5100' },
+      { key: 'EnableGateway', labelKey: 'config.field.enableGateway', type: 'bool' },
     ],
   },
   {
-    title: 'Behaviour', icon: 'bolt',
+    titleKey: 'config.group.behaviour', icon: 'bolt',
     fields: [
-      { key: 'UseEncryption', label: 'Packet encryption', type: 'bool' },
-      { key: 'BypassAuthentication', label: 'Bypass authentication', type: 'bool' },
-      { key: 'UseCustomExcel', label: 'Custom Excel tables', type: 'bool' },
-      { key: 'KoyukiIncident', label: 'Koyuki incident', type: 'bool', desc: 'nihahaha' },
-      { key: 'AutoCheckVersion', label: 'Auto-check version', type: 'bool', desc: 'Resolve latest data version on boot' },
-      { key: 'AutoUpdateVersion', label: 'Auto-update version', type: 'bool' },
-      { key: 'AutoUpdateResources', label: 'Auto-update resources', type: 'bool', desc: 'Re-download game data (Excel, HexaMap) when the version changes' },
+      { key: 'UseEncryption', labelKey: 'config.field.packetEncryption', type: 'bool' },
+      { key: 'BypassAuthentication', labelKey: 'config.field.bypassAuthentication', type: 'bool' },
+      { key: 'UseCustomExcel', labelKey: 'config.field.customExcelTables', type: 'bool' },
+      { key: 'KoyukiIncident', labelKey: 'config.field.koyukiIncident', type: 'bool', descKey: 'config.desc.koyukiIncident' },
+      { key: 'AutoCheckVersion', labelKey: 'config.field.autoCheckVersion', type: 'bool', descKey: 'config.desc.autoCheckVersion' },
+      { key: 'AutoUpdateVersion', labelKey: 'config.field.autoUpdateVersion', type: 'bool' },
+      { key: 'AutoUpdateResources', labelKey: 'config.field.autoUpdateResources', type: 'bool', descKey: 'config.desc.autoUpdateResources' },
     ],
   },
   {
-    title: 'Database', icon: 'inventory',
+    titleKey: 'config.group.database', icon: 'inventory',
     fields: [
-      { key: 'SQLProvider', label: 'SQL provider', type: 'text' },
-      { key: 'SQLConnectionString', label: 'Connection string', type: 'text' },
+      { key: 'SQLProvider', labelKey: 'config.field.sqlProvider', type: 'text' },
+      { key: 'SQLConnectionString', labelKey: 'config.field.connectionString', type: 'text' },
     ],
   },
   {
-    title: 'Version & data sources', icon: 'clock',
+    titleKey: 'config.group.versionDataSources', icon: 'clock',
     fields: [
-      { key: 'OverrideVersionId', label: 'Override version id', type: 'text', hint: 'blank = auto' },
-      { key: 'OverrideCdnBaseUrl', label: 'Override CDN base URL', type: 'text', hint: 'blank = auto' },
-      { key: 'ServerInfoUrl', label: 'Server info URL', type: 'text' },
+      { key: 'OverrideVersionId', labelKey: 'config.field.overrideVersionId', type: 'text', hintKey: 'config.hint.blankAuto' },
+      { key: 'OverrideCdnBaseUrl', labelKey: 'config.field.overrideCdnBaseUrl', type: 'text', hintKey: 'config.hint.blankAuto' },
+      { key: 'ServerInfoUrl', labelKey: 'config.field.serverInfoUrl', type: 'text' },
     ],
   },
   {
-    title: 'Client auto-patching', icon: 'shield',
+    titleKey: 'config.group.clientAutoPatching', icon: 'shield',
     fields: [
-      { key: 'ClientInstallDirectory', label: 'Game install directory', type: 'dir', hint: 'blank = look for the Steam install; the per-patch overrides below are only needed when one file lives somewhere else' },
-      { key: 'AutoPatchClientMetadata', label: 'Patch metadata', type: 'bool', path: 'ClientMetadataPath' },
-      { key: 'AutoPatchClientGamescaleIas', label: 'Patch gamescale.core IAS', type: 'bool', path: 'ClientGamescaleCorePath' },
-      { key: 'AutoPatchClientInfaceConfig', label: 'Patch inface config', type: 'bool', path: 'ClientInfaceConfigPath' },
-      { key: 'AutoManageGrap64', label: 'Manage grap64', type: 'bool', path: 'ClientGrap64Path' },
-      { key: 'AutoPatchClientBanners', label: 'Patch recruitment banners', type: 'bool', path: 'ClientExcelDbPath' },
-      { key: 'RegionDisplayText', label: 'Region label', type: 'text', hint: 'shown on the title screen, blank = stock region name' },
+      { key: 'ClientInstallDirectory', labelKey: 'config.field.gameInstallDirectory', type: 'dir', hintKey: 'config.hint.gameInstallDirectory' },
+      { key: 'AutoPatchClientMetadata', labelKey: 'config.field.patchMetadata', type: 'bool', path: 'ClientMetadataPath' },
+      { key: 'AutoPatchClientGamescaleIas', labelKey: 'config.field.patchGamescaleIas', type: 'bool', path: 'ClientGamescaleCorePath' },
+      { key: 'AutoPatchClientInfaceConfig', labelKey: 'config.field.patchInfaceConfig', type: 'bool', path: 'ClientInfaceConfigPath' },
+      { key: 'AutoManageGrap64', labelKey: 'config.field.manageGrap64', type: 'bool', path: 'ClientGrap64Path' },
+      { key: 'AutoPatchClientBanners', labelKey: 'config.field.patchRecruitmentBanners', type: 'bool', path: 'ClientExcelDbPath' },
+      { key: 'RegionDisplayText', labelKey: 'config.field.regionLabel', type: 'text', hintKey: 'config.hint.regionLabel' },
     ],
   },
   {
-    title: 'Packet logging', icon: 'edit', sub: 'PacketLogging',
+    titleKey: 'config.group.packetLogging', icon: 'edit', sub: 'PacketLogging', subKey: 'config.group.packetLoggingTechnical',
     fields: [
-      { key: 'RequestPacket', label: 'Log requests', type: 'bool' },
-      { key: 'ResponsePacket', label: 'Log responses', type: 'bool' },
-      { key: 'ErrorPacket', label: 'Log errors', type: 'bool' },
+      { key: 'RequestPacket', labelKey: 'config.field.logRequests', type: 'bool' },
+      { key: 'ResponsePacket', labelKey: 'config.field.logResponses', type: 'bool' },
+      { key: 'ErrorPacket', labelKey: 'config.field.logErrors', type: 'bool' },
     ],
   },
 ];
 
 export default {
   id: 'config',
-  title: 'Configuration',  icon: 'config',
+  get title() { return t('config.title'); },  icon: 'config',
   needsTarget: false,
 
   async mount(root, { rerender }) {
+    const language = select(SUPPORTED_LANGUAGES, { value: getLanguage() });
+    language.addEventListener('change', async () => {
+      language.disabled = true;
+      try {
+        const saved = await window.host.settingsWrite({ language: language.value });
+        if (saved?.error) throw new Error(saved.error);
+        window.location.reload();
+      } catch (error) {
+        language.disabled = false;
+        language.value = getLanguage();
+        toast(`${t('config.language.saveFailed')}: ${String(error.message || error)}`, 'bad');
+      }
+    });
+    root.appendChild(el('div.card', { style: { marginBottom: '18px' } },
+      el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t('config.language.title') })),
+      el('div.card-body', {}, field(t('config.language.label'), language, t('config.language.hint')))));
+
     const cfg = await window.host.configRead();
     if (!cfg.ok) {
-      root.appendChild(frag(`<div class="empty"><b>No configuration found</b><span><span class="mono" data-selectable style="word-break:break-all">${cfg.path}</span><br>It is generated the first time the server runs.</span></div>`));
-      const b = button('Open containing folder', { variant: 'ghost', iconName: 'folder', onClick: async () => {
+      root.appendChild(el('div.empty', {},
+        el('b', { text: t('config.empty.title') }),
+        el('span', {}, el('span.mono', { text: cfg.path, 'data-selectable': true, style: { wordBreak: 'break-all' } }), el('br'), t('config.empty.description'))));
+      const b = button(t('config.action.openContainingFolder'), { variant: 'ghost', iconName: 'folder', onClick: async () => {
         const p = await window.host.paths(); window.host.openPath(p.exeBaseDir);
       }});
       root.appendChild(el('div', { style: { textAlign: 'center', marginTop: '14px' } }, b));
@@ -110,14 +130,14 @@ export default {
     const pl = sc.PacketLogging = sc.PacketLogging || {};
 
     const restartHint = store.get().online
-      ? frag('<span class="pill warn"><span class="dot"></span>Restart server to apply</span>')
-      : frag('<span class="pill"><span class="dot"></span>Server offline</span>');
+      ? el('span.pill.warn', {}, el('span.dot', {}), t('config.status.restartToApply'))
+      : el('span.pill', {}, el('span.dot', {}), t('config.status.serverOffline'));
 
-    const saveBtn = button('Save configuration', { variant: 'primary', iconName: 'save', onClick: save });
-    const reloadBtn = button('Reload', { variant: 'ghost', iconName: 'refresh', onClick: rerender });
-    const rawBtn = button('Edit raw JSON', { variant: 'ghost', iconName: 'edit', onClick: editRaw });
-    const openBtn = button('Open file', { variant: 'ghost', iconName: 'external', onClick: () => window.host.openPath(cfg.path) });
-    const resetBtn = button('Reset to defaults', { variant: 'ghost', iconName: 'refresh', onClick: resetDefaults });
+    const saveBtn = button(t('config.action.save'), { variant: 'primary', iconName: 'save', onClick: save });
+    const reloadBtn = button(t('config.action.reload'), { variant: 'ghost', iconName: 'refresh', onClick: rerender });
+    const rawBtn = button(t('config.action.editRawJson'), { variant: 'ghost', iconName: 'edit', onClick: editRaw });
+    const openBtn = button(t('config.action.openFile'), { variant: 'ghost', iconName: 'external', onClick: () => window.host.openPath(cfg.path) });
+    const resetBtn = button(t('config.action.resetDefaults'), { variant: 'ghost', iconName: 'refresh', onClick: resetDefaults });
 
     const bar = el('div.card', { style: { marginBottom: '18px' } },
       el('div.card-body', { style: { display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' } },
@@ -136,24 +156,24 @@ export default {
           body.appendChild(row);
           if (f.path) body.appendChild(buildPathField(sc, f));
         } else if (f.type === 'dir') {
-          body.appendChild(field(f.label, buildDirRow(target, f.key), f.hint));
+          body.appendChild(field(t(f.labelKey), buildDirRow(target, f.key), f.hintKey ? t(f.hintKey) : null));
         } else {
-          body.appendChild(field(f.label, bindInput(target, f.key), f.hint));
+          body.appendChild(field(t(f.labelKey), bindInput(target, f.key), f.hintKey ? t(f.hintKey) : null));
         }
       }
       grid.appendChild(el('div.card', { style: { minWidth: '0' } },
-        el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: g.title }),
-          g.sub ? el('span.sub', { text: g.sub } ) : null),
+        el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t(g.titleKey) }),
+          g.subKey ? el('span.sub', { text: t(g.subKey) } ) : null),
         el('div.card-body', { style: { minWidth: '0' } }, body)));
     }
     root.appendChild(grid);
 
     const advBody = el('div', {});
-    advBody.appendChild(field('Excel DB SQLCipher key', bindInput(sc, 'ExcelDbSqlCipherKey')));
-    advBody.appendChild(field('Excel DB SQLCipher license', bindInput(sc, 'ExcelDbSqlCipherLicense')));
+    advBody.appendChild(field(t('config.field.excelSqlCipherKey'), bindInput(sc, 'ExcelDbSqlCipherKey')));
+    advBody.appendChild(field(t('config.field.excelSqlCipherLicense'), bindInput(sc, 'ExcelDbSqlCipherLicense')));
     root.appendChild(el('div.card', { style: { marginTop: '18px' } },
-      el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: 'Advanced - Excel decryption' }),
-        el('span.sub', { text: 'change only if your data dump differs' })),
+      el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t('config.advanced.title') }),
+        el('span.sub', { text: t('config.advanced.description') })),
       el('div.card-body', {}, advBody)));
 
     function bindInput(obj, key) {
@@ -163,9 +183,9 @@ export default {
     }
     function buildToggleRow(obj, f) {
       const row = el('div.toggle-row', {},
-        el('div.tr-text', {}, el('b', { text: f.label }), f.desc ? el('span', { text: f.desc }) : null));
-      const t = toggle(!!obj[f.key], (on) => { obj[f.key] = on; });
-      row.appendChild(t);
+        el('div.tr-text', {}, el('b', { text: t(f.labelKey) }), f.descKey ? el('span', { text: t(f.descKey) }) : null));
+      const control = toggle(!!obj[f.key], (on) => { obj[f.key] = on; });
+      row.appendChild(control);
       return row;
     }
     function buildDirRow(obj, key) {
@@ -183,7 +203,7 @@ export default {
     function buildPathField(obj, f) {
       const wrap = el('div', { style: { margin: '-4px 0 8px', paddingLeft: '2px', minWidth: '0' } });
       const row = el('div.input-row', { style: { minWidth: '0' } });
-      const i = input({ value: obj[f.path] ?? '', placeholder: 'path (optional override)' });
+      const i = input({ value: obj[f.path] ?? '', placeholder: t('config.placeholder.optionalPathOverride') });
       i.addEventListener('input', () => { obj[f.path] = i.value; });
       const browse = button('...', { variant: 'ghost', onClick: async () => {
         const picked = await window.host.pickFile();
@@ -197,31 +217,31 @@ export default {
 
     async function save() {
       const r = await window.host.configWrite(data);
-      toast(r.ok ? 'Configuration saved' : (r.error || 'Save failed'), r.ok ? 'good' : 'bad');
+      toast(r.ok ? t('config.toast.saved') : (r.error || t('config.toast.saveFailed')), r.ok ? 'good' : 'bad');
     }
     async function resetDefaults() {
-      const ok = await confirmDialog({ title: 'Reset to defaults', confirmLabel: 'Reset & save',
-        message: 'Restore every setting on this page to its default value and save it to Config.json? GameVersion, gateway keys and the database are left untouched.' });
+      const ok = await confirmDialog({ title: t('config.reset.title'), confirmLabel: t('config.reset.confirm'),
+        message: t('config.reset.message') });
       if (!ok) return;
       Object.assign(sc, DEFAULT_SERVER_CONFIG, { PacketLogging: { ...DEFAULT_SERVER_CONFIG.PacketLogging } });
       const r = await window.host.configWrite(data);
-      if (r.ok) { toast('Configuration reset to defaults', 'good'); rerender(); }
-      else toast(r.error || 'Reset failed', 'bad');
+      if (r.ok) { toast(t('config.toast.resetDone'), 'good'); rerender(); }
+      else toast(r.error || t('config.toast.resetFailed'), 'bad');
     }
 
     function editRaw() {
       const ta = textarea({ value: JSON.stringify(data, null, 2), style: { minHeight: '52vh', maxWidth: '100%', fontFamily: 'var(--font-mono)', fontSize: '12.5px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' } });
-      const apply = button('Apply', { variant: 'primary', iconName: 'check' });
-      const cancel = button('Cancel', { variant: 'ghost' });
-      const ref = modal({ title: 'Raw configuration', wide: true, body: ta, footer: [cancel, apply] });
+      const apply = button(t('config.raw.apply'), { variant: 'primary', iconName: 'check' });
+      const cancel = button(t('config.raw.cancel'), { variant: 'ghost' });
+      const ref = modal({ title: t('config.raw.title'), wide: true, body: ta, footer: [cancel, apply] });
       cancel.addEventListener('click', ref.close);
       apply.addEventListener('click', async () => {
         try {
           const parsed = JSON.parse(ta.value);
           const r = await window.host.configWrite(parsed);
-          if (r.ok) { ref.close(); toast('Configuration saved', 'good'); rerender(); }
+          if (r.ok) { ref.close(); toast(t('config.toast.saved'), 'good'); rerender(); }
           else toast(r.error, 'bad');
-        } catch (e) { toast('Invalid JSON: ' + e.message, 'bad'); }
+        } catch (e) { toast(t('config.raw.invalidJson', { message: e.message }), 'bad'); }
       });
     }
   },
