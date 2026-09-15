@@ -16,7 +16,7 @@ namespace Shittim_Server.Tests;
 // What a selection box hands over is whatever its recipe chain resolves to, and the chain lives in the dumped excels, so these run against the real ones. Anything that skips it and assumes a character writes a character row keyed by a furniture id, and one of those is enough to make the client abort every later login sync.
 public class ItemBoxTests
 {
-    [Fact]
+    [ExcelDumpFact]
     public async Task AFurniturePickFromASelectBoxLandsAsFurniture()
     {
         using var db = NewContext();
@@ -39,7 +39,7 @@ public class ItemBoxTests
         Assert.NotNull(result);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task UsingOneBoxFromABigStackReportsTheRemainderInUsedItemDB()
     {
         using var db = NewContext();
@@ -59,7 +59,7 @@ public class ItemBoxTests
         Assert.Equal(28, db.Items.Single(x => x.ServerId == ticket.ServerId).StackCount);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task UsingTheLastBoxReportsAZeroStackInUsedItemDB()
     {
         using var db = NewContext();
@@ -80,7 +80,7 @@ public class ItemBoxTests
         Assert.Empty(db.Items.Where(x => x.ServerId == ticket.ServerId));
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task ASelectionOutsideTheBoxsPoolCannotCreateACharacterRow()
     {
         using var db = NewContext();
@@ -100,7 +100,7 @@ public class ItemBoxTests
         Assert.Empty(db.Characters);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task ARandomFurnitureBoxOpensThroughItemConsume()
     {
         using var db = NewContext();
@@ -123,21 +123,7 @@ public class ItemBoxTests
 
     private static readonly ExcelTableService Excels = LoadExcels();
 
-    private static ExcelTableService LoadExcels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService LoadExcels() => ExcelDumps.Service();
 
     private static ItemManager Manager() => new(Excels, new ParcelHandler(Excels, Mapper));
 

@@ -285,6 +285,8 @@ public class InteractiveWorldRaidScheduleTests : IDisposable
     {
         var raid = Live854();
         raid.open = DateTime.UtcNow.AddDays(openDaysFromNow).ToString("yyyy-MM-dd HH:mm:ss");
+        // The replay phase (85403) is the one phase whose start does not come off a date of its own - PhaseStart reads it from the manifest's close instant. Leave close pinned to a calendar date and the replay quietly takes over the season the day the wall clock walks past it, which is what these tests were doing with Live854's hardcoded 2026-09-14. Push close past both spawns and the phase pick stays the one each test names.
+        raid.close = DateTime.UtcNow.AddDays(Math.Max(openDaysFromNow, secondSpawnDaysFromNow) + 4).ToString("yyyy-MM-dd HH:mm:ss");
         var secondSpawn = DateTime.UtcNow.AddDays(secondSpawnDaysFromNow).ToString("yyyy-MM-dd HH:mm:ss");
         raid.bosses =
         [

@@ -19,7 +19,7 @@ namespace Shittim_Server.Tests;
 // The sub-stage and strategy-skip clear paths built their rows through the ctor, which never set it, so hard tabs, extra stages and the next chapter stayed locked no matter how much was cleared.
 public class CampaignClearUnlockTests
 {
-    [Fact]
+    [ExcelDumpFact]
     public async Task ASubStageClearCountsForUnlocks()
     {
         using var db = NewContext();
@@ -36,7 +36,7 @@ public class CampaignClearUnlockTests
         Assert.True(db.CampaignStageHistories.Single(x => x.StageUniqueId == stageId).IsClearedEver);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task AReclearBackfillsARowMissingTheFlag()
     {
         using var db = NewContext();
@@ -78,21 +78,7 @@ public class CampaignClearUnlockTests
 
     private static readonly ExcelTableService Excels = LoadExcels();
 
-    private static ExcelTableService LoadExcels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService LoadExcels() => ExcelDumps.Service();
 
     private static SchaleDataContext NewContext()
     {

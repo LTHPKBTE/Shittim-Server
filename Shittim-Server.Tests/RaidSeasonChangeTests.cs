@@ -23,18 +23,7 @@ public class RaidSeasonChangeTests : IDisposable
 
     public RaidSeasonChangeTests()
     {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        _excels = new ExcelTableService();
+        _excels = ExcelDumps.Service();
 
         if (CommandFactory.commands.Count == 0)
             CommandFactory.LoadCommands();
@@ -45,7 +34,7 @@ public class RaidSeasonChangeTests : IDisposable
         seed.SaveChanges();
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task TotalAssaultSeasonChangeReachesTheLobby()
     {
         var manager = new RaidManager(_excels);
@@ -64,7 +53,7 @@ public class RaidSeasonChangeTests : IDisposable
         }
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task ALobbyLeftOnAnOlderSeasonPicksUpTheNewBoss()
     {
         var manager = new RaidManager(_excels);
@@ -88,7 +77,7 @@ public class RaidSeasonChangeTests : IDisposable
         }
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task GrandAssaultSeasonChangeReachesTheLobby()
     {
         var manager = new EliminateRaidManager(_excels);
@@ -124,7 +113,7 @@ public class RaidSeasonChangeTests : IDisposable
     }
 
     // The lobby is the only thing the client reads, so a season that only lands on the account row still shows the old boss.
-    [Fact]
+    [ExcelDumpFact]
     public async Task ASeasonSetWhileNoLobbyRowExistsStillShowsTheRightBoss()
     {
         using (var db = NewContext())
@@ -138,7 +127,7 @@ public class RaidSeasonChangeTests : IDisposable
         }
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task EverySeasonAppliesThroughTheChatCommand()
     {
         var failures = new StringBuilder();

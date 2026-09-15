@@ -15,7 +15,7 @@ namespace Shittim_Server.Tests;
 
 public class CafePresetTests
 {
-    [Fact]
+    [ExcelDumpFact]
     public async Task ApplyingATemplateBringsItsOwnFloorWallpaperAndBackground()
     {
         using var db = NewContext();
@@ -35,7 +35,7 @@ public class CafePresetTests
             Assert.Contains(deployed, x => furnById[x.UniqueId].SubCategory == sub);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task ApplyingATemplateConsumesAnOwnedStackWithoutDuplicatingTheRow()
     {
         using var db = NewContext();
@@ -57,7 +57,7 @@ public class CafePresetTests
         Assert.Empty(db.Furnitures.Where(x => x.AccountServerId == account.ServerId && x.ItemDeploySequence != 0 && x.CafeDBId == 0));
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task RemoveAllLeavesTheInteriorsAlone()
     {
         using var db = NewContext();
@@ -78,7 +78,7 @@ public class CafePresetTests
         Assert.Contains(db.Furnitures, x => x.UniqueId == chair.Id && x.ItemDeploySequence == 0);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task LoginRepairReturnsOrphanedDeployedRowsToInventory()
     {
         using var db = NewContext();
@@ -98,7 +98,7 @@ public class CafePresetTests
         Assert.Equal(FurnitureLocation.Inventory, stack.Location);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task LoginRepairReseedsACafeMissingItsInteriors()
     {
         using var db = NewContext();
@@ -117,7 +117,7 @@ public class CafePresetTests
         Assert.Equal(deployed.Count, db.Furnitures.Count(x => x.AccountServerId == account.ServerId && x.CafeDBId == cafe.CafeDBId && x.ItemDeploySequence != 0));
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task VisitorsRollOnceAndHoldUntilTheNextReset()
     {
         using var db = NewContext();
@@ -147,21 +147,7 @@ public class CafePresetTests
 
     private static readonly ExcelTableService Excels = LoadExcels();
 
-    private static ExcelTableService LoadExcels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService LoadExcels() => ExcelDumps.Service();
 
     private static CafeManager Manager() =>
         new(Excels, new ParcelHandler(Excels, Mapper), new ConsumeHandler(Excels, Mapper), Mapper);

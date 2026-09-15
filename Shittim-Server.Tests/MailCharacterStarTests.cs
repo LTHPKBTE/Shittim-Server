@@ -16,7 +16,7 @@ namespace Shittim_Server.Tests;
 // a character delivered as a mail attachment went through ParcelResolver.UpdateCharacter, which never set StarGrade, so every 3-star welfare student arrived at 1 star. gacha and the GM paths were unaffected because they build the row themselves.
 public class MailCharacterStarTests
 {
-    [Fact]
+    [ExcelDumpFact]
     public async Task ACharacterGrantedAsAParcelArrivesAtItsDefaultStarGrade()
     {
         using var db = NewContext();
@@ -29,7 +29,7 @@ public class MailCharacterStarTests
         Assert.Equal(3, db.Characters.Single(x => x.AccountServerId == account.ServerId && x.UniqueId == excel.Id).StarGrade);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task ADuplicateCharacterParcelStillConvertsToEleph()
     {
         using var db = NewContext();
@@ -46,21 +46,7 @@ public class MailCharacterStarTests
 
     private static readonly ExcelTableService Excels = LoadExcels();
 
-    private static ExcelTableService LoadExcels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService LoadExcels() => ExcelDumps.Service();
 
     private static ParcelHandler Handler() => new(Excels, Mapper);
 

@@ -8,7 +8,7 @@ namespace Shittim_Server.Tests;
 // Started life as a dump of CurrencyExcel and one stage's reward group. The two things it was actually being read for are asserted now: AP is the only currency that auto-charges past its limit, and every stage reward group carries its FirstClear/ThreeStar rows at prob 10000 in among the Default drops, which is why rolling the whole group hands out the clear bonus on every sweep.
 public class ProbeCurrencyLimitTests
 {
-    [Fact]
+    [ExcelDumpFact]
     public void ActionPointIsTheOnlyCurrencyThatChargesPastItsLimit()
     {
         var excels = Excels();
@@ -22,7 +22,7 @@ public class ProbeCurrencyLimitTests
         Assert.Equal([CurrencyTypes.ActionPoint], autoCharging.Select(x => x.CurrencyType));
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public void AStageRewardGroupCarriesItsClearBonusAlongsideTheDrops()
     {
         var excels = Excels();
@@ -44,19 +44,5 @@ public class ProbeCurrencyLimitTests
         Assert.All(rows.Where(x => !x.IsDisplayed), x => Assert.Equal(ParcelType.GachaGroup, x.StageRewardParcelType));
     }
 
-    private static ExcelTableService Excels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService Excels() => ExcelDumps.Service();
 }

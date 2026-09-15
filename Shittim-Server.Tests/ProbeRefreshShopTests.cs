@@ -8,7 +8,7 @@ namespace Shittim_Server.Tests;
 public class ProbeRefreshShopTests
 {
     // ShopRefreshExcel only carries a GoodsId; the cost and the reward both come from GoodsExcel. A row whose GoodsId does not resolve builds a shop slot that sells nothing, which is what a mismatched excel dump looks like from the client side.
-    [Fact]
+    [ExcelDumpFact]
     public void EveryRefreshRowResolvesToAGoodsRow()
     {
         var excels = Excels();
@@ -24,7 +24,7 @@ public class ProbeRefreshShopTests
         Assert.True(unresolved.Count == 0, $"{unresolved.Count} of {refresh.Count} ShopRefreshExcel rows have an unresolved GoodsId\n{sb}");
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public void RefreshRowsCoverTheFourRefreshableCategories()
     {
         var refresh = Excels().GetTable<ShopRefreshExcelT>();
@@ -35,19 +35,5 @@ public class ProbeRefreshShopTests
             categories);
     }
 
-    private static ExcelTableService Excels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService Excels() => ExcelDumps.Service();
 }

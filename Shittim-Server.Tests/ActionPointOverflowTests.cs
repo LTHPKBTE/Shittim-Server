@@ -15,7 +15,7 @@ namespace Shittim_Server.Tests;
 // The client clamps the AP counter at CurrencyExcel's OverChargeLimit (999), so any stored value past it makes spending look like a no-op: 1400 minus 30 still displays 999. Official never stores the excess - it goes to the mailbox as an InventoryFull mail.
 public class ActionPointOverflowTests
 {
-    [Fact]
+    [ExcelDumpFact]
     public async Task AGrantPastTheCapClampsTo999AndMailsTheExcess()
     {
         using var db = NewContext();
@@ -33,7 +33,7 @@ public class ActionPointOverflowTests
         Assert.Equal(91, excess.Amount);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task SpendingFromTheCapMovesTheCounter()
     {
         using var db = NewContext();
@@ -45,7 +45,7 @@ public class ActionPointOverflowTests
         Assert.Empty(db.Mails);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task AGrantUnderTheCapMailsNothing()
     {
         using var db = NewContext();
@@ -61,21 +61,7 @@ public class ActionPointOverflowTests
 
     private static readonly ExcelTableService Excels = LoadExcels();
 
-    private static ExcelTableService LoadExcels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService LoadExcels() => ExcelDumps.Service();
 
     private static SchaleDataContext NewContext()
     {

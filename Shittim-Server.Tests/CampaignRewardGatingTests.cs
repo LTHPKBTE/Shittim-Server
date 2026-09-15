@@ -20,7 +20,7 @@ namespace Shittim_Server.Tests;
 // Every reward group carries its FirstClear and ThreeStar rows at 100% next to the drops, so any path that rolls the whole group pays the once-per-account pyroxene on every replay - which is exactly what sweeps and sub-stage clears did.
 public class CampaignRewardGatingTests
 {
-    [Fact]
+    [ExcelDumpFact]
     public async Task OnlyTheFirstClearPaysTheFirstClearRows()
     {
         using var db = NewContext();
@@ -34,7 +34,7 @@ public class CampaignRewardGatingTests
         Assert.Empty(reclear);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task TheThreeStarPyroxeneWaitsForTheRunThatCompletesTheStars()
     {
         using var db = NewContext();
@@ -53,7 +53,7 @@ public class CampaignRewardGatingTests
         Assert.Empty(again);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task AReclearGrantsNoPyroxeneThroughTheDropRoll()
     {
         using var db = NewContext();
@@ -66,7 +66,7 @@ public class CampaignRewardGatingTests
         Assert.DoesNotContain(result.ParcelForMission!, x => x.Key.Type == ParcelType.Currency && x.Key.Id == (long)CurrencyTypes.GemBonus);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public void SweepDropsAreRolledToConcreteItemsBeforeDisplay()
     {
         // the group's GachaGroup rows are IsDisplayed=false; sent raw they render as blank cells in the client's sweep result
@@ -117,21 +117,7 @@ public class CampaignRewardGatingTests
 
     private static readonly ExcelTableService Excels = LoadExcels();
 
-    private static ExcelTableService LoadExcels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService LoadExcels() => ExcelDumps.Service();
 
     private static SchaleDataContext NewContext()
     {

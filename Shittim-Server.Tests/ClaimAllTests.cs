@@ -15,7 +15,7 @@ namespace Shittim_Server.Tests;
 
 public class ClaimAllTests
 {
-    [Fact]
+    [ExcelDumpFact]
     public async Task ClaimAllOnTheAllTabClaimsACompletedCafeDaily()
     {
         using var db = NewContext();
@@ -31,7 +31,7 @@ public class ClaimAllTests
         Assert.Single(db.MissionHistories.Where(x => x.AccountServerId == account.ServerId && x.MissionUniqueId == daily.Id));
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task ClaimAllOnTheDailyTabClaimsACompletedCafeDaily()
     {
         using var db = NewContext();
@@ -45,7 +45,7 @@ public class ClaimAllTests
         Assert.Contains(response.AddedHistoryDBs!, x => x.MissionUniqueId == daily.Id);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task AZeroEventContentIdDoesNotFilterEveryMissionOut()
     {
         using var db = NewContext();
@@ -78,21 +78,7 @@ public class ClaimAllTests
 
     private static readonly ExcelTableService Excels = LoadExcels();
 
-    private static ExcelTableService LoadExcels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService LoadExcels() => ExcelDumps.Service();
 
     private static MissionHandler Handler() => new(
         null!, new FixedSessionService(), Mapper, Excels,

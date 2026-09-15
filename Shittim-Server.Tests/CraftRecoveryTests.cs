@@ -17,7 +17,7 @@ namespace Shittim_Server.Tests;
 // a craft slot that grew past the legal five nodes (the old SelectNode kept appending tier-4 dupes once the final node rolled no leaves) is resent forever by Craft_List, and the client replays a broken node animation and bails to the lobby on every menu open.
 public class CraftRecoveryTests
 {
-    [Fact]
+    [ExcelDumpFact]
     public async Task CraftListDropsASlotWithDuplicateTierNodes()
     {
         using var db = NewContext();
@@ -48,7 +48,7 @@ public class CraftRecoveryTests
         Assert.Empty(db.CraftInfos.Where(x => x.AccountServerId == account.ServerId));
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task CraftListKeepsAHealthyInProgressSlot()
     {
         using var db = NewContext();
@@ -75,7 +75,7 @@ public class CraftRecoveryTests
         Assert.Single(db.CraftInfos.Where(x => x.AccountServerId == account.ServerId));
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task SelectingPastAMaxedNodeThrowsInsteadOfDuplicatingATier()
     {
         using var db = NewContext();
@@ -107,21 +107,7 @@ public class CraftRecoveryTests
 
     private static readonly ExcelTableService Excels = LoadExcels();
 
-    private static ExcelTableService LoadExcels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService LoadExcels() => ExcelDumps.Service();
 
     private static CraftHandler Handler() => new(
         null!, new FixedSessionService(), Excels, Mapper,

@@ -17,7 +17,7 @@ namespace Shittim_Server.Tests;
 // The recruitment point exchange rides Shop_BuyGacha3 like every other banner buy, and the only thing separating it from one is the RecruitSellection goods row. Miss that and the coin item has no GachaTicket type, the amount-by-item lookup falls through to 10, and a student purchase comes out a ten-pull.
 public class RecruitPointExchangeTests
 {
-    [Fact]
+    [ExcelDumpFact]
     public async Task SpendingRecruitPointsGrantsTheChosenStudentInsteadOfTenPulls()
     {
         using var db = NewContext();
@@ -46,7 +46,7 @@ public class RecruitPointExchangeTests
         Assert.Contains(acquired, x => x.UniqueId == coinId && x.StackCount == 37);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task ExchangingAnOwnedStudentPaysOutStonesNotADuplicateRow()
     {
         using var db = NewContext();
@@ -71,7 +71,7 @@ public class RecruitPointExchangeTests
         Assert.Single(db.Characters, x => x.AccountServerId == account.ServerId && x.UniqueId == characterId);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task ATenPullGoodsIsStillRolledNotExchanged()
     {
         using var db = NewContext();
@@ -118,21 +118,7 @@ public class RecruitPointExchangeTests
 
     private static readonly ExcelTableService Excels = LoadExcels();
 
-    private static ExcelTableService LoadExcels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService LoadExcels() => ExcelDumps.Service();
 
     private static ShopManager Manager() =>
         new(Excels, new SharedDataCacheService(Excels), new ParcelHandler(Excels, Mapper), Mapper);

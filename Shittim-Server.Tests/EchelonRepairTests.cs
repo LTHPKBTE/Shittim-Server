@@ -17,7 +17,7 @@ namespace Shittim_Server.Tests;
 // a character row that goes missing leaves its ServerId behind in every echelon slot that held it and in RepresentCharacterServerId, and the client stops on a blank lobby instead of reporting it, so an account in that state can never be fixed from in game.
 public class EchelonRepairTests
 {
-    [Fact]
+    [ExcelDumpFact]
     public async Task LoginSyncClearsEchelonSlotsPointingAtACharacterThatIsGone()
     {
         using var db = await NewContext();
@@ -39,7 +39,7 @@ public class EchelonRepairTests
         Assert.Contains(db.Accounts.Single().RepresentCharacterServerId, db.Characters.Select(x => x.ServerId).ToList());
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task LoginSyncLeavesAnEchelonWhoseSlotsAllResolve()
     {
         using var db = await NewContext();
@@ -95,21 +95,7 @@ public class EchelonRepairTests
 
     private static readonly ExcelTableService Excels = LoadExcels();
 
-    private static ExcelTableService LoadExcels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService LoadExcels() => ExcelDumps.Service();
 
     private static readonly IMapper Mapper = BuildMapper();
 

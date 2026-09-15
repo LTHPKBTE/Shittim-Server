@@ -16,7 +16,7 @@ namespace Shittim_Server.Tests;
 // The client rebuilds the transcript and walks new arrivals from LatestMessageGroupId entirely on its own (MomoTalkDBService), so the outline must mirror exactly the group the client says it displayed. A server-computed successor can park Latest on an unanswered Answer group, and from there the client resolves the branch off the first row and never shows the prompt.
 public class MomoTalkReadTests
 {
-    [Fact]
+    [ExcelDumpFact]
     public async Task AFlushReadStopsAtTheGroupTheClientReported()
     {
         using var db = NewContext();
@@ -37,7 +37,7 @@ public class MomoTalkReadTests
         Assert.Empty(db.MomoTalkChoices);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task AnsweringStoresTheChosenRowKeyedByTheAnswerGroup()
     {
         using var db = NewContext();
@@ -56,7 +56,7 @@ public class MomoTalkReadTests
         Assert.Equal(answer.MessageGroupId, response.MomoTalkOutLineDB.LatestMessageGroupId);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task AttendingARelationshipEventNeedsNoScheduleTicket()
     {
         using var db = NewContext();
@@ -78,7 +78,7 @@ public class MomoTalkReadTests
         Assert.Equal(0, db.Currencies.Single().CurrencyDict[CurrencyTypes.AcademyTicket]);
     }
 
-    [Fact]
+    [ExcelDumpFact]
     public async Task ARelationshipEventAboveTheCharactersFavorRankIsRefused()
     {
         using var db = NewContext();
@@ -117,21 +117,7 @@ public class MomoTalkReadTests
 
     private static readonly ExcelTableService Excels = LoadExcels();
 
-    private static ExcelTableService LoadExcels()
-    {
-        var dir = AppContext.BaseDirectory;
-        while (dir != null && !Directory.Exists(Path.Combine(dir, "Shittim-Server")))
-            dir = Path.GetDirectoryName(dir);
-
-        ExcelTableService.DumpedDir = new[]
-        {
-            Path.Combine(dir!, "Shittim-Server", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Debug", "net10.0", "Resources", "Dumped"),
-            Path.Combine(dir!, "Shittim-Server", "bin", "Release", "net10.0", "Resources", "Dumped"),
-        }.First(Directory.Exists);
-
-        return new ExcelTableService();
-    }
+    private static ExcelTableService LoadExcels() => ExcelDumps.Service();
 
     private static MomoTalkHandler Handler() => new(null!, new FixedSessionService(), Excels, Mapper, new ParcelHandler(Excels, Mapper));
 
