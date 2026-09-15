@@ -166,6 +166,8 @@ function startServer(offline) {
   }
 
   broadcast('proc:log', { source: 'server', line: `> launching ${path.basename(cmd)} (cwd: ${cwd})` });
+  // Name the host that DOTNET_ROOT will be pinned to. It outranks the machine-wide install for the apphost, so when a launch fails with "You must install .NET" this line is the difference between a two-second diagnosis and a wild goose chase.
+  broadcast('proc:log', { source: 'server', line: `> dotnet host ${dn.cmd}${dn.root ? ` (DOTNET_ROOT: ${dn.root})` : ' (from PATH)'}` });
   const child = spawn(cmd, args, { cwd, windowsHide: true, env });
   procs.server = child;
   started.server = Date.now();

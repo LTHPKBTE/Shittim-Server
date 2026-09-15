@@ -75,15 +75,32 @@ function mitmExe(name, installDir, platform = process.platform, pathVar = proces
   return firstExisting([dir ? path.join(dir, exe) : null, ...onPath]) || exe;
 }
 
+// The major version this project is compiled for, mirroring <TargetFramework>net10.0 in the csproj and the "10.0" in global.json.
+const DOTNET_MAJOR = '10';
+
+// Can the install at `dir` build and run THIS project? Two halves are needed and neither is implied by the other: an SDK of the major version global.json will accept, and a shared runtime the framework-dependent apphost can load. "A dotnet.exe is in the directory" proves neither, which is the whole reason this function exists - a machine with dotnet-install.ps1 into %LOCALAPPDATA%\Microsoft\dotnet alongside Microsoft's own installer in Program Files is ordinary, and the per-user copy is then the older one.
+function hostsProject(dir, major = DOTNET_MAJOR) {
+  if (!dir) return false;
+  const hasMajor = (p) => { try { return fs.readdirSync(p).some((v) => v.split('.')[0] === major); } catch { return false; } };
+  return hasMajor(path.join(dir, 'sdk')) && hasMajor(path.join(dir, 'shared', 'Microsoft.NETCore.App'));
+}
+
 // Our own install goes to perUserDir and is found by existence, so this is really about the other two: an SDK the user installed themselves before we ever ran, and one installed system-wide while we were running. The second is why PATH alone is not enough - our copy of it was taken when the process started.
-function dotnetExe(perUserDir, platform = process.platform, pathVar = process.env.PATH || process.env.Path || '', programFiles = process.env.ProgramFiles) {
+// Preference order is unchanged - ours, then PATH, then the standard location - but the winner is the first install that can HOST the project rather than the first that has a file in it. Getting that wrong is not a cosmetic misreport: the apphost takes DOTNET_ROOT as the only place a runtime may live and does not fall back, so pointing the server at an install with no 10.x runtime makes a working machine print "You must install .NET to run this application" and exit 0x80008096.
+function dotnetExe(perUserDir, platform = process.platform, pathVar = process.env.PATH || process.env.Path || '', programFiles = process.env.ProgramFiles, major = DOTNET_MAJOR) {
   const exe = platform === 'win32' ? 'dotnet.exe' : 'dotnet';
   const ours = perUserDir ? path.join(perUserDir, exe) : null;
-  if (ours && fs.existsSync(ours)) return { cmd: ours, root: perUserDir };
 
   const dirs = pathVar.split(path.delimiter).filter(Boolean);
   if (platform === 'win32' && programFiles) dirs.push(path.join(programFiles, 'dotnet'));
   else if (platform !== 'win32') dirs.push('/usr/share/dotnet', '/usr/lib/dotnet');
+
+  const installs = perUserDir ? [perUserDir, ...dirs] : dirs;
+  const usable = installs.find((d) => hostsProject(d, major));
+  if (usable) return { cmd: path.join(usable, exe), root: usable };
+
+  // No install here can host the project, so fall back to the old answer - the first host that exists, in the order above, with its SDK list read by invoking it rather than off disk. The launch is going to fail either way, and the environment check is the thing that has to say so.
+  if (ours && fs.existsSync(ours)) return { cmd: ours, root: perUserDir };
 
   const found = firstExisting(dirs.map((d) => path.join(d, exe)));
   return { cmd: found || exe, root: null };

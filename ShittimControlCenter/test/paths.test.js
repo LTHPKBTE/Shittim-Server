@@ -173,6 +173,70 @@ test('with no SDK anywhere the bare name comes back for the check to fail on', (
   assert.deepEqual(r, { cmd: 'dotnet.exe', root: null });
 });
 
+// An install laid out the way a real one is: the host, an SDK the version in global.json accepts, and a shared runtime the apphost can load. Either half can be left off.
+function installAt(dir, sdk, runtime) {
+  dotnetAt(dir);
+  if (sdk) fs.mkdirSync(path.join(dir, 'sdk', sdk), { recursive: true });
+  if (runtime) fs.mkdirSync(path.join(dir, 'shared', 'Microsoft.NETCore.App', runtime), { recursive: true });
+  return path.join(dir, 'dotnet.exe');
+}
+
+// The reason being ours stopped being enough. dotnet-install.ps1 into %LOCALAPPDATA%\Microsoft\dotnet next to Microsoft's own installer is an ordinary machine, and the per-user copy is then the older one - on this very machine it held an 8.x SDK while Program Files held the 10.x the server needs. Picking the per-user host does not just misreport: the apphost reads the DOTNET_ROOT we hand it and never falls back, so the server exits with "You must install .NET to run this application" (0x80008096) on a machine that has exactly what it asked for.
+test('an install that cannot host the project loses to one that can', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'scc-dn-'));
+  try {
+    const ours = path.join(root, 'AppData', 'Local', 'Microsoft', 'dotnet');
+    installAt(ours, '8.0.424', '8.0.30');
+    const system = path.join(root, 'Program Files', 'dotnet');
+    const exe = installAt(system, '10.0.401', '10.0.7');
+
+    const r = dotnetExe(ours, 'win32', '', path.join(root, 'Program Files'));
+    assert.equal(r.cmd, exe);
+    assert.equal(r.root, system, 'and DOTNET_ROOT has to name it, or the apphost looks nowhere else');
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+test('our own install still wins when it is the one that can host the project', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'scc-dn-'));
+  try {
+    const ours = path.join(root, 'AppData', 'Local', 'Microsoft', 'dotnet');
+    const exe = installAt(ours, '10.0.100', '10.0.0');
+    installAt(path.join(root, 'Program Files', 'dotnet'), '10.0.401', '10.0.12');
+
+    const r = dotnetExe(ours, 'win32', '', path.join(root, 'Program Files'));
+    assert.equal(r.cmd, exe);
+    assert.equal(r.root, ours);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+// A runtime-only install cannot build the project and an SDK-only one cannot host the apphost, so neither is a host, however new its version number is.
+test('half an install is not an install', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'scc-dn-'));
+  try {
+    const runtimeOnly = path.join(root, 'AppData', 'Local', 'Microsoft', 'dotnet');
+    installAt(runtimeOnly, null, '10.0.30');
+    const sdkOnly = path.join(root, 'Program Files', 'dotnet');
+    installAt(sdkOnly, '10.0.401', null);
+
+    const r = dotnetExe(runtimeOnly, 'win32', '', path.join(root, 'Program Files'));
+    assert.equal(r.cmd, path.join(runtimeOnly, 'dotnet.exe'), 'nothing usable here, so the old first-existing answer stands');
+    assert.equal(r.root, runtimeOnly);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
+// A usable install on PATH is still named as the root: whatever put the host on PATH, the apphost needs DOTNET_ROOT to find its runtime.
+test('a usable install found on PATH is named as the root', () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'scc-dn-'));
+  try {
+    const onPath = path.join(root, 'tools', 'dotnet');
+    const exe = installAt(onPath, '10.0.401', '10.0.7');
+
+    const r = dotnetExe(null, 'win32', onPath, path.join(root, 'Program Files'));
+    assert.equal(r.cmd, exe);
+    assert.equal(r.root, onPath);
+  } finally { fs.rmSync(root, { recursive: true, force: true }); }
+});
+
 // An install whose sources are at `sources` and whose compiled server was built from `built`.
 function versioned(sources, built) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'scc-ver-'));
