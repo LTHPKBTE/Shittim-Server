@@ -39,7 +39,7 @@ NGS_PROBE_PORT = 58880
 X_INIT_RESPONSE_PATH = Path(__file__).with_name("ngs_x_init_response.bin")
 NGS_PASSTHROUGH = os.environ.get("SHITTIM_NGS_PASSTHROUGH") == "1"
 OFFLINE_MODE = os.environ.get("SHITTIM_OFFLINE_MODE") == "1"
-# offline there is nothing to divert - the hosts file aims the game at 127.0.0.2 and mitmproxy answers there as a reverse proxy. It refuses to forward anywhere it recognises as itself, which is the same port at 127.0.0.1/localhost/::1/its own listen address, and the game's ports are exactly the server's. 127.0.0.3 is that same server (it binds 0.0.0.0) under an address the guard does not match.
+# offline there is nothing to divert - the hosts file aims the game at 127.0.0.2 and mitmproxy answers there as a reverse proxy. It refuses to forward anywhere it recognises as itself, which is the same port at 127.0.0.1/localhost/::1/its own listen address, and the game's ports are exactly the server's. 127.0.0.3 is that same server under an address the guard does not match - the server binds loopback only, and 127.0.0.3 alongside 127.0.0.1 for exactly this reason (see GetListenAddresses in GameServer.cs).
 SERVER_HOST = "127.0.0.3" if OFFLINE_MODE else "127.0.0.1"
 NGS_HOSTS = [
     'x-init.ngs.nexon.com',

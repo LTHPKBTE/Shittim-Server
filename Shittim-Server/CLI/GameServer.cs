@@ -158,26 +158,31 @@ namespace Shittim.CLI
                 var apiPort = ParsePort(Config.Instance.ServerConfiguration.HostPort, 5000, nameof(Config.Instance.ServerConfiguration.HostPort));
                 var gatewayPort = ParsePort(Config.Instance.ServerConfiguration.GatewayPort, 5100, nameof(Config.Instance.ServerConfiguration.GatewayPort));
 
+                // Loopback only. Everything that talks to this server is on this machine - the Control Center, the redirect proxy, and the game the proxy has already been pointed at. The gateway speaks an unauthenticated private protocol, so leaving port 5100 reachable from the LAN meant anyone on the network could drive an account.
+                var listenAddresses = GetListenAddresses();
+
                 builder.WebHost.ConfigureKestrel(options =>
                 {
-                    if (httpsCert != null)
+                    foreach (var listenAddress in listenAddresses)
                     {
-                        options.Listen(System.Net.IPAddress.Any, 443, listenOptions =>
+                        if (httpsCert != null)
                         {
-                            listenOptions.UseHttps(httpsCert);
-                        });
-                        Console.WriteLine("HTTPS on port 443 for SDK endpoints");
+                            options.Listen(listenAddress, 443, listenOptions =>
+                            {
+                                listenOptions.UseHttps(httpsCert);
+                            });
+                        }
+
+                        options.Listen(listenAddress, apiPort);
+                        if (gatewayPort != apiPort)
+                            options.Listen(listenAddress, gatewayPort);
                     }
-                    else
-                    {
-                        Console.WriteLine("HTTPS on port 443 disabled (no certificate)");
-                    }
-                    
-                    options.Listen(System.Net.IPAddress.Any, apiPort);
-                    if (gatewayPort != apiPort)
-                        options.Listen(System.Net.IPAddress.Any, gatewayPort);
+
+                    Console.WriteLine(httpsCert != null
+                        ? "HTTPS on port 443 for SDK endpoints"
+                        : "HTTPS on port 443 disabled (no certificate)");
                 });
-                Console.WriteLine($"HTTP on ports {apiPort} (API) & {gatewayPort} (Gateway)");
+                Console.WriteLine($"HTTP bound to {string.Join(", ", listenAddresses)} on ports {apiPort} (API) & {gatewayPort} (Gateway)");
 
                 var app = builder.Build();
 
@@ -271,6 +276,44 @@ namespace Shittim.CLI
 
             Log.Warning("Invalid {ConfigName} value {PortValue}; using {FallbackPort}", configName, value, fallback);
             return fallback;
+        }
+
+        // Every alias the server is willing to accept a connection on, and all of them loopback. 127.0.0.1 covers the ordinary case; 127.0.0.3 is the address the redirect proxy's offline reverse listeners forward to (127.0.0.2 is where mitmproxy itself answers, so it is deliberately absent) - see Scripts/redirect_server_mitmproxy/redirect_server.py. Nothing else in 127.0.0.0/8 is bound, and neither is any LAN address.
+        private static readonly string[] LoopbackAliases = { "127.0.0.1", "127.0.0.3" };
+
+        private static List<System.Net.IPAddress> GetListenAddresses()
+        {
+            var addresses = new List<System.Net.IPAddress>();
+
+            foreach (var alias in LoopbackAliases)
+            {
+                var address = System.Net.IPAddress.Parse(alias);
+                if (CanBind(address))
+                    addresses.Add(address);
+                else
+                    Log.Warning("Loopback alias {Address} is not bindable on this host; skipping it", alias);
+            }
+
+            if (addresses.Count == 0)
+                addresses.Add(System.Net.IPAddress.Loopback);
+
+            return addresses;
+        }
+
+        // A host that does not have the offline alias configured would otherwise make Kestrel fail on startup, so probe the address with a throwaway listener first.
+        private static bool CanBind(System.Net.IPAddress address)
+        {
+            try
+            {
+                var probe = new System.Net.Sockets.TcpListener(address, 0);
+                probe.Start();
+                probe.Stop();
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

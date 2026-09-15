@@ -13,8 +13,13 @@ namespace Shittim.Services.IrcClient
 
         public IrcService(IDbContextFactory<SchaleDataContext> context, IMapper mapper, ExcelTableService excelTableService)
         {
+            // Loopback only. Config.Load() already pins IrcAddress to 127.0.0.1, and ClanHandler hands the client that same address, so binding any address only made the chat port reachable from the LAN.
+            var ircAddress = IPAddress.TryParse(Config.Instance.IrcConfiguration.IrcAddress, out var parsed)
+                ? parsed
+                : IPAddress.Loopback;
+
             server = new IrcServer(
-                IPAddress.Any,
+                ircAddress,
                 Config.Instance.IrcConfiguration.IrcPort,
                 context, mapper, excelTableService
             );
