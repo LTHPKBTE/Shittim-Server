@@ -129,13 +129,13 @@ jobs:
         shell: pwsh
         run: |
           $tag = "${{ steps.version.outputs.tag }}"
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # -c rather than `git config`, which defaults to --local and writes into this checkout's .git/config. That is harmless on a runner, whose checkout is thrown away with the job - but the same lines run by hand in a real clone re-sign every commit made in it afterwards as the bot, because repo config outranks ~/.gitconfig. That happened once here. -c scopes the identity to the one command and leaves the repository's config alone.
+          $bot = @('-c', 'user.name=github-actions[bot]', '-c', 'user.email=41898282+github-actions[bot]@users.noreply.github.com')
           # Re-releasing a version that already failed once finds the tag in place, and the guard above has already established that it names this commit.
           if (-not "$(git rev-parse --verify --quiet "refs/tags/$tag^{commit}" 2>$null)".Trim()) {
-            git tag $tag
+            git @bot tag $tag
           }
-          git push origin $tag
+          git @bot push origin $tag
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
