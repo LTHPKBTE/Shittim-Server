@@ -1191,8 +1191,8 @@ function setupAutoUpdate(win) {
       broadcast('proc:log', { source: 'server', line: `> auto-update unavailable (electron-updater not bundled): ${e.message}` });
       return null;
     }
-    cachedAutoUpdater.autoDownload = false;        // prompt before pulling the build
-    cachedAutoUpdater.autoInstallOnAppQuit = true; // if declined now, install on quit
+    cachedAutoUpdater.autoDownload = false;         // prompt before pulling the build
+    cachedAutoUpdater.autoInstallOnAppQuit = false; // downloading is not consent to install. The second dialog is, so nothing lands on the user's machine without a second explicit yes - a declined update stays in the cache and is offered again next launch.
     try { cachedAutoUpdater.logger = null; } catch { /* ignore */ }
   }
 
@@ -1224,11 +1224,12 @@ function setupAutoUpdate(win) {
       broadcast('update:self', { phase: 'downloaded', version: info.version });
       const { response } = await dialog.showMessageBox(win, {
         type: 'info',
-        buttons: [mainT('main.restartNow'), mainT('main.onNextQuit')],
+        buttons: [mainT('main.restartNow'), mainT('common.later')],
         defaultId: 0,
         cancelId: 1,
         title: mainT('main.updateReady'),
         message: mainT('main.updateDownloaded', { version: info.version }),
+        detail: mainT('main.updateNotInstalledDetail'),
       });
       if (response === 0) setImmediate(() => autoUpdater.quitAndInstall());
     });
