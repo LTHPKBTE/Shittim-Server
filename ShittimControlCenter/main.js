@@ -418,7 +418,8 @@ async function runEnvChecks() {
 
 const US = '';
 
-const GH = { owner: 'Neoexm', repo: 'Shittim-Server', branch: 'main' };
+// Where this build checks for and pulls updates and server source from. Keep it in step with build.publish in package.json, which is what the packaged build's in-place updater reads.
+const GH = { owner: 'LTHPKBTE', repo: 'Shittim-Server', branch: 'main' };
 const GH_UA = 'ShittimControlCenter';
 const VERSION_FILE = 'shittim-version.json';
 

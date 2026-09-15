@@ -32,7 +32,7 @@
     "publish": [
       {
         "provider": "github",
-        "owner": "HollisMeynell",
+        "owner": "LTHPKBTE",
         "repo": "Shittim-Server",
         "releaseType": "release"
       }

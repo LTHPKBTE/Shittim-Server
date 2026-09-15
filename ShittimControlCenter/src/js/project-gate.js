@@ -73,7 +73,7 @@ export function renderProjectGate(appRoot, status, { titlebar }) {
 
   const downloadCard = el('div.card', {},
     el('div.card-head', {}, el('span.tab-mark', {}), el('h3', { text: t('projectGate.downloadLatest') }),
-      el('span.sub', { text: 'Neoexm/Shittim-Server - main' }), el('div.spacer', {})),
+      el('span.sub', { text: 'LTHPKBTE/Shittim-Server - main' }), el('div.spacer', {})),
     el('div.card-body', {},
       el('p', {
         text: t('projectGate.downloadDescription'),
