@@ -42,6 +42,17 @@ jobs:
         with:
           global-json-file: global.json
 
+      # `dotnet test` drives the Control Center's own node suite (ControlCenterUpdaterTests), and src/js/i18n.js imports i18next straight out of node_modules, which test/console.test.js reaches through ui.js. That suite predates the dependency, so it used to pass on a bare checkout; it does not any more. npm install rather than npm ci because .gitignore keeps package-lock.json out of the tree. --ignore-scripts skips electron's ~150 MB binary download, which nothing in those tests launches.
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Control Center dependencies
+        shell: pwsh
+        working-directory: ShittimControlCenter
+        run: npm install --ignore-scripts --no-audit --no-fund
+
       - name: Run tests
         shell: pwsh
         run: |
@@ -64,14 +75,18 @@ jobs:
 
           $tag = "v$version"
 
-          if ($env:GITHUB_REF_TYPE -eq 'tag') {
-            # A tag push IS the release trigger, so the tag is already there; what has to hold is that it names the version this commit declares. Tagging a commit that still carries the previous number is the mistake this catches.
-            if ($env:GITHUB_REF_NAME -ne $tag) {
-              throw "pushed $env:GITHUB_REF_NAME but this tree declares $tag - tag the commit that carries the version, or bump the version to match the tag"
-            }
+          if ($env:GITHUB_REF_TYPE -eq 'tag' -and $env:GITHUB_REF_NAME -ne $tag) {
+            # Tagging a commit that still carries the previous number is the mistake this catches.
+            throw "pushed $env:GITHUB_REF_NAME but this tree declares $tag - tag the commit that carries the version, or bump the version to match the tag"
           }
-          elseif (git tag --list $tag) {
-            throw "$tag already exists - bump Directory.Build.props and package.json before releasing"
+
+          # A tag-triggered run always finds its own tag already in place, and so does a manual re-run of a release that failed part-way. Neither is a problem as long as the tag names this commit. Releasing a second, different commit under a tag that is already out there is, so that is what gets refused.
+          $tagCommit = "$(git rev-parse --verify --quiet "refs/tags/$tag^{commit}" 2>$null)".Trim()
+          if ($tagCommit) {
+            $head = "$(git rev-parse HEAD)".Trim()
+            if ($tagCommit -ne $head) {
+              throw "$tag already points at $tagCommit but this build is from $head - bump Directory.Build.props and ShittimControlCenter/package.json to release a new commit"
+            }
           }
 
           "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
@@ -113,10 +128,14 @@ jobs:
         if: github.ref_type != 'tag'
         shell: pwsh
         run: |
+          $tag = "${{ steps.version.outputs.tag }}"
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag "${{ steps.version.outputs.tag }}"
-          git push origin "${{ steps.version.outputs.tag }}"
+          # Re-releasing a version that already failed once finds the tag in place, and the guard above has already established that it names this commit.
+          if (-not "$(git rev-parse --verify --quiet "refs/tags/$tag^{commit}" 2>$null)".Trim()) {
+            git tag $tag
+          }
+          git push origin $tag
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2

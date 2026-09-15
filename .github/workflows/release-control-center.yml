@@ -56,6 +56,10 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      # Nothing used to test this tree before publishing it. The renderer's own suite is quick and it is the only thing that catches a locale file that has drifted, so it runs before anything is uploaded - a release here is live the moment it finishes.
+      - name: Run tests
+        run: npm test
+
       - name: Build & publish to GitHub Releases
         env:
           # electron-builder reads GH_TOKEN to publish; the built-in token has the
