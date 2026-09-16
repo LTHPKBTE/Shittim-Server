@@ -33,6 +33,31 @@ The file has three sections. `ServerConfiguration` is the one that matters; `Irc
 | `GatewayRsaPrivateKeyPem` / `Path` | empty | the login handshake key; normally loaded from `Config/GatewayPrivateKey.pem` |
 | `GatewayRsaPublicKeyPem` / `Path` | empty | the public half, patched into the client's metadata |
 
+### Outbound proxy
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `OutboundProxyUrl` | empty | proxy for the server's own outbound requests |
+| `OutboundProxyBypass` | empty | hosts that skip that proxy: `host`, `.suffix`, `*.suffix`, `host:port`, or `*`. Only read when a URL is set; loopback always skips |
+| `OutboundProxyUseSystem` | true | read only when the URL is empty: leave the machine's own proxy setting in charge, exactly as `HttpClient` does by default. Off makes every outbound request go direct |
+
+These cover every request the server makes to something other than itself: the version check against
+PureAPK and the Nexon patch API, the CDN downloads of `ExcelDB.db`, `Excel.zip` and `HexaMap.zip`, the
+`ServerInfoUrl` lookup, the world raid coordinator, and the arena stats fetch. Client traffic that
+mitmproxy redirects is not affected - the proxy answers that.
+
+Left alone, none of this changes what the server already did: an empty `OutboundProxyUrl` hands each request
+to the machine's own proxy setting, which is what a plain `HttpClient` reads. The default is worth knowing
+because of the game rather than the server - **the client refuses to run with a system proxy configured**,
+so on a machine that plays the Windows setting has to stay off, and the server's route out goes with it.
+Point `OutboundProxyUrl` at a local proxy (`http://127.0.0.1:7890`) and the server keeps that route while
+the machine's own setting stays empty.
+
+The address is read per request, so the Control Center can change it while the server runs - a proxy that
+comes up or goes down does not need a restart. A URL with no scheme is read as `http://`, credentials may
+be inline (`http://user:pass@127.0.0.1:8080`), and `socks5` is accepted. Anything else is taken as a typo:
+that request goes direct rather than failing every request over it.
+
 ### Client
 
 | Key | Default | Meaning |
