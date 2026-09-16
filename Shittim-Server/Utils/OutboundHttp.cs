@@ -4,10 +4,16 @@ using BlueArchiveAPI.Configuration;
 namespace Shittim.Utils
 {
     /// <summary>
-    /// Decides where the server's own outbound requests go, in one place for all of them: the version check,
-    /// the CDN downloads, the world raid coordinator, the arena fetch. Each of those still builds its own
-    /// <see cref="HttpClient"/> with its own timeout and headers, but they all take a handler from
-    /// <see cref="OutboundHttp"/> and that handler is this proxy.
+    /// Decides where the server's own outbound requests go, in one place for all of them: the version check
+    /// against PureAPK and the Nexon patch API, the CDN downloads of the Excel and HexaMap tables, the world
+    /// raid coordinator, the arena fetch. Each of those still builds its own <see cref="HttpClient"/> with its
+    /// own timeout and headers, but they all take a handler from <see cref="OutboundHttp"/> and that handler
+    /// is this proxy.
+    ///
+    /// What it is not: a proxy for the game. Everything the client asks for is answered by this server on
+    /// loopback, so there is nothing on that path to route and nothing here touches it. The setting exists
+    /// for the server's own fetches, and loopback is answered directly in every mode so that a proxy can
+    /// never be handed a request this server is meant to answer itself.
     ///
     /// The address is read per request rather than per client on purpose. A client holds its handler for the
     /// life of the process, several of these clients are static fields built before the configuration has
@@ -47,16 +53,22 @@ namespace Shittim.Utils
 
         public Uri? GetProxy(Uri destination)
         {
+            // This server answers its own addresses - the gateway, the admin API, the SDK endpoints the client
+            // was pointed at. None of that is anybody else's to route, so loopback is answered here, ahead of
+            // both the system setting and the configured list, and it stays answered whatever either says.
+            if (IsLoopback(destination.Host))
+                return destination;
+
             var (url, bypass, useSystem) = Settings();
 
             // Nothing configured and the machine's own setting left alone: the question goes straight to the
             // same proxy HttpClient would have consulted anyway, answer included, so an untouched Config.json
-            // behaves exactly as it did before any of this existed - including whatever the machine decides
-            // about loopback, and including the null it returns when no proxy is configured at all.
+            // behaves exactly as it did before any of this existed - including the null it returns when no
+            // proxy is configured at all.
             if (string.IsNullOrWhiteSpace(url))
                 return useSystem ? System()?.GetProxy(destination) : destination;
 
-            // An address is set, so the list and the loopback rule are ours to apply.
+            // An address is set, so the list is ours to apply.
             if (IsBypassedHost(destination.Host, destination.Port, bypass))
                 return destination;
 
@@ -65,6 +77,9 @@ namespace Shittim.Utils
 
         public bool IsBypassed(Uri host)
         {
+            if (IsLoopback(host.Host))
+                return true;
+
             var (url, bypass, useSystem) = Settings();
 
             if (string.IsNullOrWhiteSpace(url))
@@ -84,18 +99,15 @@ namespace Shittim.Utils
         }
 
         /// <summary>
-        /// Loopback is never proxied: this server is what is on the other end of it, and the proxy itself is
-        /// reached over loopback. Everything else is the configured list - a plain host, a <c>.suffix</c> or
-        /// <c>*.suffix</c> tail, <c>*</c> for everything, optionally with a <c>:port</c> that has to match too.
+        /// Loopback is never proxied, whoever asks: this server is what is on the other end of its own
+        /// addresses, and the proxy itself is reached over loopback. Everything else is the configured list -
+        /// a plain host, a <c>.suffix</c> or <c>*.suffix</c> tail, <c>*</c> for everything, optionally with a
+        /// <c>:port</c> that has to match too. The list is only consulted when an address is configured; with
+        /// none, the machine's own list is the one that decides.
         /// </summary>
         public static bool IsBypassedHost(string? host, int port, string? bypassList)
         {
-            if (string.IsNullOrEmpty(host))
-                return true;
-
-            if (host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
-                host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
-                (IPAddress.TryParse(host, out var address) && IPAddress.IsLoopback(address)))
+            if (IsLoopback(host))
                 return true;
 
             if (string.IsNullOrWhiteSpace(bypassList))
@@ -103,11 +115,26 @@ namespace Shittim.Utils
 
             foreach (var entry in bypassList.Split(new[] { ',', ';', ' ', '\t', '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries))
             {
-                if (Matches(host, port, entry))
+                if (Matches(host!, port, entry))
                     return true;
             }
 
             return false;
+        }
+
+        /// <summary>
+        /// <c>localhost</c>, anything under it, and every literal loopback address. Matched on the host name in
+        /// the request, never on what it resolves to: a hostname the hosts file points at loopback is still
+        /// routed by name, which is what offline mode relies on.
+        /// </summary>
+        public static bool IsLoopback(string? host)
+        {
+            if (string.IsNullOrEmpty(host))
+                return true;
+
+            return host.Equals("localhost", StringComparison.OrdinalIgnoreCase) ||
+                   host.EndsWith(".localhost", StringComparison.OrdinalIgnoreCase) ||
+                   (IPAddress.TryParse(host, out var address) && IPAddress.IsLoopback(address));
         }
 
         private static bool Matches(string host, int port, string entry)

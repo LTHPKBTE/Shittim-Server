@@ -163,4 +163,44 @@ public class OutboundProxyTests
             (config.OutboundProxyUrl, config.OutboundProxyBypass, config.OutboundProxyUseSystem) = saved;
         }
     }
+
+    // The one thing an untouched Config.json does not inherit from the machine: this server's own addresses.
+    // A Windows proxy setting that does not carry <local> would otherwise send the server's calls to its own
+    // gateway out to a proxy, which is a request the server is meant to answer itself.
+    [Theory]
+    [InlineData("https://localhost:5100/api")]
+    [InlineData("http://127.0.0.1:5000/api/admin/status")]
+    [InlineData("http://127.0.0.3:5000/health")]
+    [InlineData("http://[::1]:5000/health")]
+    public void ThisServersOwnAddressesAreAnsweredHereAndNotByAProxy(string address)
+    {
+        var config = Config.Instance.ServerConfiguration;
+        var saved = (config.OutboundProxyUrl, config.OutboundProxyBypass, config.OutboundProxyUseSystem);
+
+        try
+        {
+            var destination = new Uri(address);
+            var proxy = new ConfigurableProxy();
+
+            // With a proxy configured and a list that does not mention any of these.
+            config.OutboundProxyUrl = "http://127.0.0.1:7890";
+            config.OutboundProxyBypass = "internal.test";
+            config.OutboundProxyUseSystem = false;
+
+            Assert.Equal(destination, proxy.GetProxy(destination));
+            Assert.True(proxy.IsBypassed(destination));
+
+            // And with nothing configured, where the machine's own list would otherwise be in charge.
+            config.OutboundProxyUrl = "";
+            config.OutboundProxyBypass = "";
+            config.OutboundProxyUseSystem = true;
+
+            Assert.Equal(destination, proxy.GetProxy(destination));
+            Assert.True(proxy.IsBypassed(destination));
+        }
+        finally
+        {
+            (config.OutboundProxyUrl, config.OutboundProxyBypass, config.OutboundProxyUseSystem) = saved;
+        }
+    }
 }
