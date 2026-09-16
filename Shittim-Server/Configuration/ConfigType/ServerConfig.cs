@@ -11,6 +11,12 @@ namespace BlueArchiveAPI.Configuration.ConfigType
         public string HostPort { get; set; } = "5000";
         public string GatewayPort { get; set; } = "5100";
         public bool EnableGateway { get; set; } = true;
+        // Where the server's own outbound requests go: the version check, the CDN downloads, the world raid coordinator, the arena fetch. The game refuses to run with a system proxy configured, so on a machine that plays it the Windows proxy setting has to stay off - and that is the setting .NET reads by default. An address here is the route out through a proxy that does not depend on it. Read per request, so the Control Center can change it while the server runs.
+        public string OutboundProxyUrl { get; set; } = "";
+        // Hosts that skip OutboundProxyUrl, comma or semicolon separated: a host, a .suffix or *.suffix tail, or a host:port. Only read when OutboundProxyUrl is set; loopback is always skipped.
+        public string OutboundProxyBypass { get; set; } = "";
+        // When OutboundProxyUrl is empty, leave the machine's own proxy setting in charge the way HttpClient does by default - which is what makes the defaults change nothing. Off makes every outbound request go direct.
+        public bool OutboundProxyUseSystem { get; set; } = true;
         public string GatewayRsaPrivateKeyPem { get; set; } = "";
         public string GatewayRsaPrivateKeyPath { get; set; } = "";
         public string GatewayRsaPublicKeyPem { get; set; } = "";

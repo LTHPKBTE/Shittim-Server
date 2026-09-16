@@ -3,6 +3,7 @@ using BlueArchiveAPI.Core.Crypto;
 using Ionic.Zip;
 using System.Text;
 using Schale.Crypto;
+using Shittim.Utils;
 
 namespace BlueArchiveAPI.Services
 {
@@ -13,7 +14,7 @@ namespace BlueArchiveAPI.Services
         public static string CustomDir = Path.Join(ResourceDir, "Custom");
         public static string DumpedDir = Path.Join(ResourceDir, "Dumped");
 
-        private static readonly HttpClient httpClient = new()
+        private static readonly HttpClient httpClient = new(OutboundHttp.CreateHandler())
         {
             Timeout = Timeout.InfiniteTimeSpan
         };

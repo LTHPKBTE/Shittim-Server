@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 using BlueArchiveAPI.Configuration;
 using BlueArchiveAPI.Services;
+using Shittim.Utils;
 
 namespace Shittim_Server.Services;
 
@@ -27,7 +28,7 @@ public class WorldRaidSyncService : BackgroundService
     {
         this.logger = logger;
         this.excel = excel;
-        this.http = http ?? new HttpClient() { Timeout = RequestTimeout };
+        this.http = http ?? new HttpClient(OutboundHttp.CreateHandler()) { Timeout = RequestTimeout };
         this.pollInterval = pollInterval;
     }
 

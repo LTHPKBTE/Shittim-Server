@@ -1,4 +1,5 @@
 using Shittim.Models.GM;
+using Shittim.Utils;
 using System.Text.Json;
 using Serilog;
 
@@ -10,7 +11,7 @@ namespace Shittim.GameMasters
         private static readonly string ArenaJsonPath = Path.Combine(ArenaDirectory, "arena_battle.json");
         private static readonly object FileLock = new object();
 
-        private static readonly HttpClient _httpClient = new HttpClient();
+        private static readonly HttpClient _httpClient = new HttpClient(OutboundHttp.CreateHandler());
 
         static ArenaUtils()
         {

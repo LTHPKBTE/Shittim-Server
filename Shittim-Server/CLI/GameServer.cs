@@ -52,7 +52,7 @@ namespace Shittim.CLI
 
                 using var loggerFactory = LoggerFactory.Create(builder => builder.AddSerilog());
                 var resolverLogger = loggerFactory.CreateLogger<BlueArchiveVersionResolver>();
-                using var httpClient = new HttpClient();
+                using var httpClient = new HttpClient(OutboundHttp.CreateHandler());
                 var resolver = new BlueArchiveVersionResolver(httpClient, resolverLogger);
 
                 var (versionId, cdnBaseUrl) = await resolver.GetOrUpdateVersionIdAsync(

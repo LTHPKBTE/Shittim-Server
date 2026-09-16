@@ -9,6 +9,7 @@ using System.Reflection.Emit;
 using System.Text;
 using System.Xml;
 using Shittim_Server.Core;
+using Shittim.Utils;
 using Protocol = Schale.MX.NetworkProtocol.Protocol;
 
 namespace Shittim_Server.Controllers.Dev
@@ -22,7 +23,7 @@ namespace Shittim_Server.Controllers.Dev
         private const string API_URL = "https://nxm-tw-bagl.nexon.com:5000/api";
         private const string GATEWAY_URL = "https://localhost:5100/api";
 
-        private static readonly HttpClient _client = new HttpClient();
+        private static readonly HttpClient _client = new HttpClient(OutboundHttp.CreateHandler());
 
         static ApiController()
         {

@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using BlueArchiveAPI.Configuration;
+using Shittim.Utils;
 
 namespace BlueArchiveAPI.Services
 {
@@ -30,7 +31,7 @@ namespace BlueArchiveAPI.Services
 
     public class VersionFetcherService
     {
-        private static readonly HttpClient httpClient = new()
+        private static readonly HttpClient httpClient = new(OutboundHttp.CreateHandler())
         {
             Timeout = TimeSpan.FromSeconds(30)
         };

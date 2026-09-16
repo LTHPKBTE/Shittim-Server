@@ -1,6 +1,7 @@
 using Ionic.Zip;
 using Schale.Crypto;
 using Serilog;
+using Shittim.Utils;
 
 namespace BlueArchiveAPI.Configuration
 {
@@ -11,7 +12,7 @@ namespace BlueArchiveAPI.Configuration
         public static string CustomDir = Path.Join(ResourceDir, "Custom");
         public static string DumpedDir = Path.Join(ResourceDir, "Dumped");
 
-        private static readonly HttpClient httpClient = new()
+        private static readonly HttpClient httpClient = new(OutboundHttp.CreateHandler())
         {
             Timeout = TimeSpan.FromMinutes(10)
         };
