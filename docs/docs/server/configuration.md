@@ -65,18 +65,13 @@ game. Everything the client asks for is answered by this server on loopback, and
 that true - a request the server is meant to answer itself cannot be diverted to a proxy by a Windows proxy
 setting that happens not to carry `<local>`.
 
-The setting earns its place because of the game rather than the server: **the client refuses to run with a
-system proxy configured**, so on a machine that plays the Windows setting has to stay off, and the server's
-route out goes with it. Point `OutboundProxyUrl` at a local proxy (`http://127.0.0.1:7890`) and the server
-keeps that route while the machine's own setting stays empty.
-
 The address is read per request, so the Control Center can change it while the server runs - a proxy that
 comes up or goes down does not need a restart. A URL with no scheme is read as `http://`, credentials may
 be inline (`http://user:pass@127.0.0.1:8080`), and `socks5` is accepted. Anything else is taken as a typo:
 that request goes direct rather than failing every request over it.
 
 The Control Center is not covered by any of this. It does its own fetching in Node, which ignores the
-Windows proxy setting entirely, so its update check already works with the setting off.
+Windows proxy setting entirely.
 
 ### Client
 

@@ -5,9 +5,10 @@ using Xunit;
 namespace Shittim_Server.Tests;
 
 // Where an outbound request actually goes when a proxy is or is not configured. The setting exists because the
-// game refuses to run with a system proxy set, so the server cannot depend on the machine's own proxy setting
-// to get out - while an untouched Config.json still has to behave exactly as it did before any of this
-// existed, which is what the last test here pins with the machine's own proxy object as the reference.
+// Windows proxy setting has to stay off on a machine that plays - the client's requests would go to that proxy
+// and never reach this server - and that is the same setting .NET reads by default. While an untouched
+// Config.json still has to behave exactly as it did before any of this existed, which is what the last test
+// here pins with the machine's own proxy object as the reference.
 //
 // Every test in this class touches the process-wide Config, so they stay in one class: xunit runs the tests of
 // a class one at a time and the classes of a collection in parallel.

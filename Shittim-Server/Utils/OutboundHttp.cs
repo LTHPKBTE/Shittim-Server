@@ -20,10 +20,11 @@ namespace Shittim.Utils
     /// even been loaded, and the Control Center writes Config.json while the server runs - so anything fixed
     /// at construction would either see no configuration at all or ignore every later change to it.
     ///
-    /// The reason the setting exists: the game refuses to run with a system proxy configured, so on a machine
-    /// that plays it the Windows proxy setting has to stay off - and that is the setting .NET reads by
-    /// default. Without this, turning the system proxy off to play also takes away the server's route out
-    /// through a local proxy for the few requests that need one.
+    /// The reason the setting exists: with the Windows proxy setting on, the client's own requests go to that
+    /// proxy, so mitmproxy never gets to rewrite them at loopback and this server never gets to answer - which
+    /// is why the machine's setting has to stay off on a machine that plays. That is also the setting .NET
+    /// reads by default, so without an address here, leaving it off for the client takes the server's route
+    /// out with it.
     /// </summary>
     public sealed class ConfigurableProxy : IWebProxy
     {

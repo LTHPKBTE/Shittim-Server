@@ -295,7 +295,7 @@
   "config.desc.autoCheckVersion": "Resolve latest data version on boot",
   "config.desc.autoUpdateResources": "Re-download game data (Excel, HexaMap) when the version changes",
   "config.desc.outboundProxy": "Only the server's own fetches: version checks, CDN downloads, the world raid coordinator, the arena fetch. The game's requests are answered by the server and never proxied. Read per request, so a change needs no restart",
-  "config.desc.outboundProxyUseSystem": "Only used when the field above is empty. This is the setting .NET reads by default, and the game refuses to run with it set",
+  "config.desc.outboundProxyUseSystem": "Only used when the field above is empty. This is what .NET reads on its own, so leaving it on changes nothing",
   "config.empty.title": "No configuration found",
   "config.empty.description": "It is generated the first time the server runs.",
   "config.action.openContainingFolder": "Open containing folder",
