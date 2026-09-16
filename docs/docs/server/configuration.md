@@ -38,25 +38,45 @@ The file has three sections. `ServerConfiguration` is the one that matters; `Irc
 | Key | Default | Meaning |
 | --- | --- | --- |
 | `OutboundProxyUrl` | empty | proxy for the server's own outbound requests |
-| `OutboundProxyBypass` | empty | hosts that skip that proxy: `host`, `.suffix`, `*.suffix`, `host:port`, or `*`. Only read when a URL is set; loopback always skips |
+| `OutboundProxyBypass` | empty | hosts that skip that proxy: `host`, `.suffix`, `*.suffix`, `host:port`, or `*`. Only read when a URL is set |
 | `OutboundProxyUseSystem` | true | read only when the URL is empty: leave the machine's own proxy setting in charge, exactly as `HttpClient` does by default. Off makes every outbound request go direct |
 
-These cover every request the server makes to something other than itself: the version check against
-PureAPK and the Nexon patch API, the CDN downloads of `ExcelDB.db`, `Excel.zip` and `HexaMap.zip`, the
-`ServerInfoUrl` lookup, the world raid coordinator, and the arena stats fetch. Client traffic that
-mitmproxy redirects is not affected - the proxy answers that.
+Every request is answered by the first of these that applies:
 
-Left alone, none of this changes what the server already did: an empty `OutboundProxyUrl` hands each request
-to the machine's own proxy setting, which is what a plain `HttpClient` reads. The default is worth knowing
-because of the game rather than the server - **the client refuses to run with a system proxy configured**,
-so on a machine that plays the Windows setting has to stay off, and the server's route out goes with it.
-Point `OutboundProxyUrl` at a local proxy (`http://127.0.0.1:7890`) and the server keeps that route while
-the machine's own setting stays empty.
+1. **This server's own addresses are never proxied.** `localhost`, `*.localhost` and any literal loopback
+   address - the gateway, the admin API, the SDK endpoints the client was pointed at - are answered here.
+   A proxy is never handed one, whatever the two settings below say, and this comes first so that no
+   combination of them can lose it.
+2. With `OutboundProxyUrl` empty and `OutboundProxyUseSystem` true, which is the default, everything else is
+   left to the machine's own proxy setting, exactly as a plain `HttpClient` would. **`OutboundProxyBypass`
+   is not read in this mode** - the machine has a list of its own and that is the one that decides.
+3. With an address set, that address takes every request `OutboundProxyBypass` does not name. The machine's
+   setting and its list are not consulted at all.
+
+The list is there to keep specific hosts off a proxy once you have configured one: something on the LAN the
+proxy cannot reach, a host whose route out you want to be sure of, or another proxy. `*` bypasses everything,
+which is a way of keeping the keys in the file while turning the proxy off. Remember that a promise like
+`example.com` also covers `cdn.example.com`, because a suffix match is on the label boundary.
+
+These settings cover **only the requests the server makes for itself**: the version check against PureAPK
+and the Nexon patch API, the CDN downloads of `ExcelDB.db`, `Excel.zip` and `HexaMap.zip`, the
+`ServerInfoUrl` lookup, the world raid coordinator, and the arena stats fetch. They are not a proxy for the
+game. Everything the client asks for is answered by this server on loopback, and step 1 above is what keeps
+that true - a request the server is meant to answer itself cannot be diverted to a proxy by a Windows proxy
+setting that happens not to carry `<local>`.
+
+The setting earns its place because of the game rather than the server: **the client refuses to run with a
+system proxy configured**, so on a machine that plays the Windows setting has to stay off, and the server's
+route out goes with it. Point `OutboundProxyUrl` at a local proxy (`http://127.0.0.1:7890`) and the server
+keeps that route while the machine's own setting stays empty.
 
 The address is read per request, so the Control Center can change it while the server runs - a proxy that
 comes up or goes down does not need a restart. A URL with no scheme is read as `http://`, credentials may
 be inline (`http://user:pass@127.0.0.1:8080`), and `socks5` is accepted. Anything else is taken as a typo:
 that request goes direct rather than failing every request over it.
+
+The Control Center is not covered by any of this. It does its own fetching in Node, which ignores the
+Windows proxy setting entirely, so its update check already works with the setting off.
 
 ### Client
 
