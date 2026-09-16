@@ -8,6 +8,9 @@ const DEFAULT_SERVER_CONFIG = {
   HostPort: '5000',
   GatewayPort: '5100',
   EnableGateway: true,
+  OutboundProxyUrl: '',
+  OutboundProxyBypass: '',
+  OutboundProxyUseSystem: true,
   ClientInstallDirectory: '',
   AutoPatchClientMetadata: true, ClientMetadataPath: '',
   AutoPatchClientGamescaleIas: true, ClientGamescaleCorePath: '',
@@ -39,6 +42,14 @@ const GROUPS = [
       { key: 'HostPort', labelKey: 'config.field.apiPort', type: 'text', hintKey: 'config.hint.default5000' },
       { key: 'GatewayPort', labelKey: 'config.field.gatewayPort', type: 'text', hintKey: 'config.hint.default5100' },
       { key: 'EnableGateway', labelKey: 'config.field.enableGateway', type: 'bool' },
+    ],
+  },
+  {
+    titleKey: 'config.group.outboundProxy', icon: 'server',
+    fields: [
+      { key: 'OutboundProxyUrl', labelKey: 'config.field.outboundProxyUrl', type: 'text', hintKey: 'config.hint.outboundProxyUrl', descKey: 'config.desc.outboundProxy' },
+      { key: 'OutboundProxyBypass', labelKey: 'config.field.outboundProxyBypass', type: 'text', hintKey: 'config.hint.outboundProxyBypass' },
+      { key: 'OutboundProxyUseSystem', labelKey: 'config.field.outboundProxyUseSystem', type: 'bool', descKey: 'config.desc.outboundProxyUseSystem' },
     ],
   },
   {
