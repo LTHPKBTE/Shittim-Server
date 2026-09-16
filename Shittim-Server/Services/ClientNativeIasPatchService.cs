@@ -145,6 +145,21 @@ namespace Shittim_Server.Services
             new("stamp-live-host-base", false, "/stamp/live", "", 32, PatchPadding.Null,
             [
                 "public.api.nexon.com/stamp/live"
+            ]),
+            // The host-form stamp table carries live01 as a slot of its own, beside the live slot above.
+            // The candidate above does not reach it, and neither does the route scan: the /stamp/live
+            // marker does land on this slot, but SlotLength 32 then slices it to ".../stamp/liv", which no
+            // longer contains the route, so LooksLikeSameIasSlot rejects it and the slot is dropped
+            // without a warning. Nothing else covers it either - the full-form table has no live01 entry,
+            // and this is the only live01 left in the module - so it alone keeps pointing at the real
+            // https://public.api.nexon.com while every other live slot in this module goes to loopback.
+            // This closes a coverage gap and nothing more. It is not a proven source of any symptom: no
+            // run has logged a /stamp/ request at all, so whether either slot is exercised in a normal
+            // session is unconfirmed, and a call left on the real host is invisible here because the
+            // client's native HTTP client pins TLS.
+            new("stamp-live01-host-base", false, "/stamp/live01", "", 34, PatchPadding.Null,
+            [
+                "public.api.nexon.com/stamp/live01"
             ])
         ];
 
