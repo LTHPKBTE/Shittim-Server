@@ -9,16 +9,26 @@ namespace Shittim_Server.Services;
 public class WorldRaidSyncService : BackgroundService
 {
     private static readonly TimeSpan PollInterval = TimeSpan.FromSeconds(60);
+    private static readonly TimeSpan RequestTimeout = TimeSpan.FromSeconds(10);
 
     private readonly ILogger<WorldRaidSyncService> logger;
     private readonly ExcelTableService excel;
-    private readonly HttpClient http = new() { Timeout = TimeSpan.FromSeconds(10) };
+    private readonly HttpClient http;
+    private readonly TimeSpan pollInterval;
     private bool offline;
 
     public WorldRaidSyncService(ILogger<WorldRaidSyncService> logger, ExcelTableService excel)
+        : this(logger, excel, null, PollInterval)
+    {
+    }
+
+    // Tests drive the loop directly: a coordinator that answers too slowly has to leave the host running, which is only observable by owning the client and the interval.
+    internal WorldRaidSyncService(ILogger<WorldRaidSyncService> logger, ExcelTableService excel, HttpClient? http, TimeSpan pollInterval)
     {
         this.logger = logger;
         this.excel = excel;
+        this.http = http ?? new HttpClient() { Timeout = RequestTimeout };
+        this.pollInterval = pollInterval;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -33,16 +43,26 @@ public class WorldRaidSyncService : BackgroundService
         {
             try
             {
-                await SyncOnce(url);
+                await SyncOnce(url, stoppingToken);
                 if (offline)
                 {
                     offline = false;
                     logger.LogInformation("World raid coordinator is reachable again");
                 }
             }
-            catch (Exception ex) when (ex is not OperationCanceledException)
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
-                // one line the first time, then quiet - a coordinator that is down for the night would otherwise fill the log at every poll
+                break;
+            }
+            catch (Exception ex)
+            {
+                // HttpClient.Timeout throws TaskCanceledException, which is an OperationCanceledException - so
+                // filtering this catch on the exception type alone let the coordinator's own timeout past it,
+                // and an unhandled background exception stops the host under the default
+                // BackgroundServiceExceptionBehavior. The shutdown case is separated by the token instead.
+                //
+                // One line the first time, then quiet - a coordinator that is down for the night would
+                // otherwise fill the log at every poll.
                 if (!offline)
                 {
                     offline = true;
@@ -50,14 +70,14 @@ public class WorldRaidSyncService : BackgroundService
                 }
             }
 
-            try { await Task.Delay(PollInterval, stoppingToken); }
+            try { await Task.Delay(pollInterval, stoppingToken); }
             catch (OperationCanceledException) { break; }
         }
     }
 
-    private async Task SyncOnce(string url)
+    private async Task SyncOnce(string url, CancellationToken ct)
     {
-        var manifestJson = await http.GetStringAsync($"{url}/worldraid/manifest");
+        var manifestJson = await http.GetStringAsync($"{url}/worldraid/manifest", ct);
         var manifest = string.IsNullOrWhiteSpace(manifestJson) ? null : JsonSerializer.Deserialize<WorldRaidManifest>(manifestJson);
 
         if (manifest != null && !string.IsNullOrWhiteSpace(manifest.minServerVersion) &&
@@ -86,7 +106,7 @@ public class WorldRaidSyncService : BackgroundService
         foreach (var (groupId, damage) in WorldRaidService.PendingSnapshot())
         {
             var body = JsonSerializer.Serialize(new { serverId = WorldRaidService.ServerId, seasonId = manifest.seasonId, groupId, damage });
-            var answer = await http.PostAsync($"{url}/worldraid/contribute", new StringContent(body, Encoding.UTF8, "application/json"));
+            var answer = await http.PostAsync($"{url}/worldraid/contribute", new StringContent(body, Encoding.UTF8, "application/json"), ct);
             if (answer.StatusCode == System.Net.HttpStatusCode.Conflict)
             {
                 // the coordinator rejected this group outright (season rolled, or a boss it never declared) - retrying cannot succeed
@@ -103,7 +123,7 @@ public class WorldRaidSyncService : BackgroundService
 
         if (!flushed)
         {
-            var state = JsonSerializer.Deserialize<WorldRaidWorldState>(await http.GetStringAsync($"{url}/worldraid/state"));
+            var state = JsonSerializer.Deserialize<WorldRaidWorldState>(await http.GetStringAsync($"{url}/worldraid/state", ct));
             if (state != null)
                 WorldRaidService.ApplyRemoteState(state);
         }
