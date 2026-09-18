@@ -122,6 +122,7 @@ namespace Shittim_Server.Services
                     if (File.Exists(premods) && !((ReadOnlySpan<byte>)installed).SequenceEqual(File.ReadAllBytes(premods)))
                     {
                         File.Copy(premods, install, true);
+                        SyncCatalogHash(install);
                         logger.LogInformation("No modded bundles left - put the shipped catalog back at {Path}", install);
                     }
                     return;
@@ -146,6 +147,7 @@ namespace Shittim_Server.Services
                 if (!((ReadOnlySpan<byte>)built).SequenceEqual(installed))
                 {
                     File.WriteAllBytes(install, built);
+                    SyncCatalogHash(install);
                     var cached = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "AppData", "LocalLow", "NEXON Games", "Blue Archive", "catalog_Remote.bytes");
                     if (File.Exists(cached))
                         File.WriteAllBytes(cached, built);
@@ -250,6 +252,7 @@ namespace Shittim_Server.Services
                 {
                     File.Copy(premods, catalog, true);
                     File.Delete(premods);
+                    SyncCatalogHash(catalog);
                     logger.LogInformation("No modded clips left - put the shipped media catalog back at {Path}", catalog);
                 }
                 return;
@@ -274,6 +277,7 @@ namespace Shittim_Server.Services
                 return;
 
             File.WriteAllBytes(catalog, built);
+            SyncCatalogHash(catalog);
             logger.LogInformation("Spliced {Count} modded clip(s) into {Path}", clips.Count, catalog);
         }
 
@@ -364,6 +368,47 @@ namespace Shittim_Server.Services
 
             if (patched > 0)
                 File.WriteAllBytes(catalog, blob);
+
+            // The .hash is checked even when no row needed patching. The .bytes can already be right while an
+            // earlier run left the pair disagreeing, and a stale hash on its own is enough to have the client
+            // read the set as damaged and restore the shipped ExcelDB.db over the modded rows.
+            SyncCatalogHash(catalog);
+        }
+
+        // A catalog is two files: the .bytes the client parses and a .hash sibling it validates that .bytes
+        // against. TableCatalog.hash and MediaCatalog.hash carry the decimal XXHash32 of their .bytes, while
+        // catalog_Windows.hash is Unity's own Hash128 in hex and is not derived from the file at all, so the
+        // format decides which ones we own. Rewriting the .bytes without its .hash leaves the pair disagreeing,
+        // and the client answers that with the "abnormal client" popup and a drop to the title screen.
+        internal static void SyncCatalogHash(string catalogPath)
+        {
+            var hashPath = Path.ChangeExtension(catalogPath, ".hash");
+            if (!File.Exists(hashPath) || !File.Exists(catalogPath))
+                return;
+
+            // The raw text matters, not just the number. The client's file table records each file's length and only
+            // opens and hashes a file when the length disagrees with it, so a write that changes the digit count turns a
+            // file the client never looked at into one it opens and flags: 4170919675 is 12 bytes with its newline,
+            // 986052003 is 11, and that single byte was enough for the "abnormal client" popup. Pad the decimal back to
+            // the width that was already on disk so the rewrite is invisible to the length comparison.
+            var raw = File.ReadAllText(hashPath);
+            var stored = raw.Trim();
+            if (!uint.TryParse(stored, out _))
+                return;
+
+            using var hasher = XXHash32.Create();
+            hasher.ComputeHash(File.ReadAllBytes(catalogPath));
+            var actual = hasher.HashUInt32.ToString();
+            if (stored == actual)
+                return;
+
+            var ending = raw.EndsWith("\r\n") ? "\r\n" : raw.EndsWith("\n") ? "\n" : "\r\n";
+            var width = Math.Max(stored.Length, actual.Length);
+            File.WriteAllText(hashPath, actual.PadLeft(width, '0') + ending);
+            if (width > actual.Length)
+                Log.Information("Checksum for {File} read {Stored} in the hash file, wrote {Actual} padded to {Width} digits so the file length the client recorded stays intact", Path.GetFileName(catalogPath), stored, actual, width);
+            else
+                Log.Information("Checksum for {File} read {Stored} in the hash file, wrote {Actual}", Path.GetFileName(catalogPath), stored, actual);
         }
 
         private static uint Crc32(string path)
