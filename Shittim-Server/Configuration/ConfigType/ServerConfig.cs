@@ -28,6 +28,8 @@ namespace BlueArchiveAPI.Configuration.ConfigType
         // Lets the client hand out an external ticket with Steam offline or not running. Off by default because it rewrites GameAssembly.dll, which Steam restores on a file verify.
         public bool AutoPatchClientSteamOffline { get; set; } = false;
         public string ClientGameAssemblyPath { get; set; } = "";
+        // Skips the file table check the client runs over PUB\Resource as the lobby comes up, which otherwise reads the shipped file set as damaged: ExcelDB.db is eight sqlite pages larger than the shipped file the table records, and there is no copy of that table the server can rewrite. Only the branch that sets the damaged flag is patched, and nothing else reads that flag. Steam restores GameAssembly.dll on a file verify.
+        public bool AutoPatchClientResourceIntegrity { get; set; } = true;
         public bool AutoPatchClientGamescaleIas { get; set; } = true;
         public string ClientGamescaleCorePath { get; set; } = "";
         public string ClientInfacePath { get; set; } = "";
