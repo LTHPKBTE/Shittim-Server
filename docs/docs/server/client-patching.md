@@ -21,6 +21,7 @@ The retail client talks to Nexon. Getting it to talk to loopback instead means e
 | Banners | the client's `ExcelDB.db` | recruitment banner rows |
 | Region label | `global-metadata.dat` | the title-screen region name |
 | Store URL | the client's store lookup | points it at this server so the shop currency check answers with no route out |
+| Resource integrity | `GameAssembly.dll` | skips the client's own file check over `PUB\Resource` |
 
 The `GameAssembly.dll` patcher is off by default because Steam restores that file on a verify, and a restored file means the patch is silently gone.
 
@@ -42,9 +43,18 @@ The native patches are anchored on byte signatures, not fixed offsets. A Steam a
 
 ```text
 IAS binary patch target was not found: <name>
+<Module> IAS binary patch <name> matched <N> locations, expected <M> - skipping it.
+Steam offline patch could not be located for <names> - the client build has probably changed and the signatures need re-anchoring
+No Steam offline patch signatures matched: <path>
 ```
 
 When that happens the signature has to be re-anchored against the new binary.
+
+That is workable because of how the client is built. Its IL2CPP metadata keeps every class and
+method name as written, so a rebuild moves code but never renames it. The address a patch used
+to sit at is worthless after an update, while the method it sat in can still be found by name.
+Re-anchoring is therefore a name search, a read of the new body, and a fresh signature taken
+from the instructions that body still shares with the old one.
 
 ### Wildcards over the operands that move
 
@@ -79,6 +89,25 @@ Two of the patchers write into the client's own `ExcelDB.db` rather than into a 
 Both are re-applied on every server start, because a client update replaces `ExcelDB.db` and takes them with it.
 
 The client reads that database when it launches, so both need a game relaunch, not just a server restart. And because the file is locked while the game is running, neither can be applied with Blue Archive open.
+
+## The client's own file check
+
+The client carries an integrity pass of its own. When the lobby comes up it walks every file under
+`PUB\Resource` and compares a `{length, crc32}` record from a table of its own against what is on
+disk. Length is compared first, and a file whose length still agrees with its record is never
+opened at all. One that is opened is hashed, and a mismatch sets a single flag that a later pass
+turns into an "Abnormal client." popup and a drop back to the title screen.
+
+The server cannot satisfy that comparison. `ExcelDB.db` ships at 326,123,520 bytes and the event
+schedule rewrite leaves it at 326,156,288 - eight sqlite pages of rows the client's table does not
+record - and the checksum it holds is the shipped file's. The table is not one this server writes
+or serves, so there is no copy of it that can be made to agree.
+
+The patch therefore targets the pass rather than the data. One byte in the per-file body turns the
+length-equality branch into an unconditional jump to its skip arm, so no file is opened, nothing is
+hashed, and the flag is never set. Nothing else reads that flag, which is what makes the skip safe
+rather than merely convenient. It is applied at startup and reverted on stop like the rest, and it
+has its own switch on the Configuration page.
 
 ## Undoing everything
 

@@ -80,6 +80,7 @@ Windows proxy setting entirely.
 | `ClientInstallDirectory` | empty | the install everything else is derived from. Blank means find it |
 | `AutoPatchClientMetadata` | true | gateway public key and region label in `global-metadata.dat` |
 | `AutoPatchClientSteamOffline` | **false** | lets the client hand out an external ticket with Steam offline or not running; rewrites `GameAssembly.dll`, which Steam restores on a file verify |
+| `AutoPatchClientResourceIntegrity` | true | skips the client's own `{length, crc32}` file check over `PUB\Resource`; rewrites `GameAssembly.dll`, which Steam restores on a file verify |
 | `AutoPatchClientGamescaleIas` | true | `gamescale.core.dll` |
 | `AutoPatchClientInfaceConfig` | true | the inface config file |
 | `AutoManageGrap64` | true | grap64 plugin |
